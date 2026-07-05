@@ -36,7 +36,8 @@ class HedgeConfig:
     """Configuration for hedging."""
     enabled: bool = True
     hedge_price: float = 0.02
-    order_type: str = "GTD"
+    hedge_contracts: int = 1  # Number of contracts for instant hedge protection
+    order_type: str = "GTD"  # GTD (passive) or FAK (instant hedge)
     max_retries: int = 3
     retry_delay_ms: int = 1000
     simulation_mode: bool = False
@@ -253,6 +254,156 @@ class HedgeManager:
         # All attempts failed
         hedge_logger.error(f"HEDGE FAILED after {self.config.max_retries} attempts: {last_error}")
         logger.error(f"Hedge failed: {last_error}")
+        
+        return HedgeResult(
+            success=False,
+            attempts=self.config.max_retries,
+            error=last_error
+        )
+    
+    async def place_instant_hedge(self) -> HedgeResult:
+        """
+        Place instant hedge order at market price (FAK).
+        
+        This buys the opposite token immediately at current market price
+        to provide active protection against reversal.
+        
+        Called once after entry is confirmed. Uses hedge_contracts from config
+        (not matching main position size).
+        
+        Returns:
+            HedgeResult with placement details
+        """
+        if not self.config.enabled:
+            return HedgeResult(success=False, error="Hedge disabled")
+        
+        if not self._position:
+            return HedgeResult(success=False, error="No position set")
+        
+        pos = self._position
+        
+        # DUPLICATE PROTECTION
+        if pos.hedge_order_placed:
+            hedge_logger.warning("INSTANT HEDGE ALREADY PLACED - skipping")
+            return HedgeResult(
+                success=True,
+                order_id=pos.hedge_order_id,
+                contracts=pos.hedge_contracts_filled,
+                price=pos.hedge_price,
+                error="Already placed"
+            )
+
+        if self.config.simulation_mode:
+            hedge_logger.info("=" * 60)
+            hedge_logger.info("SIMULATION: Instant hedge (no order sent)")
+            oid = "SIM-HEDGE-INSTANT"
+            # Simulate market price around $0.18
+            sim_price = 0.18
+            sim_contracts = self.config.hedge_contracts
+            pos.hedge_order_placed = True
+            pos.hedge_order_id = oid
+            pos.hedge_contracts_filled = sim_contracts
+            pos.hedged = True  # Instant hedge fills immediately in simulation
+            self.hedges_placed += 1
+            hedge_logger.info(f"  Order ID: {oid}")
+            hedge_logger.info(f"  Contracts: {sim_contracts} @ ${sim_price:.3f}")
+            hedge_logger.info(f"  Cost: ${sim_contracts * sim_price:.2f}")
+            hedge_logger.info("=" * 60)
+            logger.info(f"Simulation instant hedge: {sim_contracts} @ ${sim_price:.3f}")
+            return HedgeResult(
+                success=True,
+                order_id=oid,
+                contracts=sim_contracts,
+                price=sim_price,
+                attempts=1,
+            )
+        
+        hedge_logger.info("=" * 60)
+        hedge_logger.info("PLACING INSTANT HEDGE ORDER (FAK)")
+        hedge_logger.info(f"  Token: {pos.opposite_token_id[:30]}...")
+        hedge_logger.info(f"  Size: {self.config.hedge_contracts} contracts")
+        hedge_logger.info(f"  Type: FAK (Fill-And-Kill at market)")
+        hedge_logger.info(f"  Max Retries: {self.config.max_retries}")
+        hedge_logger.info("-" * 40)
+        
+        last_error = ""
+        
+        for attempt in range(1, self.config.max_retries + 1):
+            hedge_logger.info(f"ATTEMPT {attempt}/{self.config.max_retries}")
+            
+            try:
+                # Get current market price (best ask) for opposite token
+                best_ask = await self.executor.get_best_ask(pos.opposite_token_id)
+                
+                if not best_ask:
+                    last_error = "Could not get market price for opposite token"
+                    hedge_logger.warning(f"  ⚠️ {last_error}")
+                    if attempt < self.config.max_retries:
+                        await asyncio.sleep(self.config.retry_delay_ms / 1000)
+                    continue
+                
+                hedge_logger.info(f"  Market Price (Best Ask): ${best_ask:.4f}")
+                
+                # Use hedge_contracts from config (not matching main position)
+                hedge_contracts = self.config.hedge_contracts
+                
+                # Calculate cost
+                hedge_cost = hedge_contracts * best_ask
+                hedge_logger.info(f"  Hedge Cost: ${hedge_cost:.2f}")
+                
+                # Place FAK order at market price
+                success, order_id, response = await self.executor.place_fak_order(
+                    token_id=pos.opposite_token_id,
+                    price=best_ask,
+                    size=hedge_contracts
+                )
+                
+                if success and order_id:
+                    # ORDER FILLED SUCCESSFULLY
+                    pos.hedge_order_placed = True
+                    pos.hedge_order_id = order_id
+                    pos.hedge_contracts_filled = hedge_contracts
+                    pos.hedged = True  # FAK orders fill immediately or not at all
+                    self.hedges_placed += 1
+                    
+                    hedge_logger.info(f"  ✅ INSTANT HEDGE ORDER FILLED")
+                    hedge_logger.info(f"  Order ID: {order_id}")
+                    hedge_logger.info(f"  Contracts: {hedge_contracts} @ ${best_ask:.4f}")
+                    hedge_logger.info(f"  Total Cost: ${hedge_cost:.2f}")
+                    
+                    logger.info(
+                        f"Instant hedge filled: {hedge_contracts} @ ${best_ask:.4f}, "
+                        f"ID: {order_id[:20]}..., Cost: ${hedge_cost:.2f}"
+                    )
+                    
+                    return HedgeResult(
+                        success=True,
+                        order_id=order_id,
+                        contracts=hedge_contracts,
+                        price=best_ask,
+                        attempts=attempt
+                    )
+                else:
+                    # Order failed
+                    error_msg = response.get("errorMsg", "Order rejected") if isinstance(response, dict) else "Unknown error"
+                    last_error = error_msg
+                    hedge_logger.warning(f"  ❌ Failed: {last_error}")
+                    logger.warning(f"Instant hedge attempt {attempt} failed: {last_error}")
+                    
+                    if attempt < self.config.max_retries:
+                        await asyncio.sleep(self.config.retry_delay_ms / 1000)
+                    
+            except Exception as e:
+                last_error = str(e)
+                hedge_logger.error(f"  ❌ Exception: {last_error}")
+                logger.error(f"Instant hedge attempt {attempt} error: {last_error}")
+                
+                if attempt < self.config.max_retries:
+                    await asyncio.sleep(self.config.retry_delay_ms / 1000)
+        
+        # All attempts failed
+        hedge_logger.error(f"INSTANT HEDGE FAILED after {self.config.max_retries} attempts: {last_error}")
+        logger.error(f"Instant hedge failed: {last_error}")
         
         return HedgeResult(
             success=False,
