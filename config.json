@@ -45,6 +45,16 @@
     "hedge_only_if_profit": true,
     "min_floating_profit_pct": 0.20
   },
+  
+  "dual_position": {
+    "_comment": "Trap Play Strategy: Buy both sides - main follows signal, trap profits from reversal",
+    "enabled": true,
+    "total_budget_usd": 2.00,
+    "main_allocation_pct": 0.85,
+    "trap_allocation_pct": 0.15,
+    "max_trap_price": 0.25,
+    "order_type": "FAK"
+  },
 
   "redeem": {
     "enabled": true,

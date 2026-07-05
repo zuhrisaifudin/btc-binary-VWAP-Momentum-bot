@@ -176,7 +176,7 @@ class TelegramNotifier:
         retries: int,
         interval_minutes: int = 15,
         simulation: bool = False,
-    ):
+    ) -> None:
         """Send entry notification."""
         mode = "🎮 <b>[SIMULATION]</b>\n" if simulation else ""
         text = (
@@ -186,6 +186,47 @@ class TelegramNotifier:
             f"💰 ${cost:.2f} @ {price:.2f}\n"
             f"📦 {contracts} contracts\n"
             f"🔄 {retries} retries"
+        )
+        await self.send_message(text)
+    
+    async def notify_dual_position(
+        self,
+        main_side: str,
+        main_contracts: int,
+        main_price: float,
+        main_cost: float,
+        trap_side: str,
+        trap_contracts: int,
+        trap_price: float,
+        trap_cost: float,
+        total_cost: float,
+        interval_minutes: int = 15,
+        simulation: bool = False,
+    ) -> None:
+        """Send dual position (Trap Play) notification."""
+        mode = "🎮 <b>[SIMULATION]</b>\n" if simulation else ""
+        
+        # Hitung potensi profit jika trap menang
+        trap_potential = trap_contracts * 1.00  # Jika trap jadi $1.00
+        trap_roi = ((trap_potential - trap_cost) / trap_cost) * 100 if trap_cost > 0 else 0
+        
+        text = (
+            f"{mode}"
+            f"🎯 <b>DUAL POSITION (TRAP PLAY)</b>\n"
+            f"📊 BTC {interval_minutes}min\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"🔵 <b>MAIN ({main_side})</b>\n"
+            f"   📦 {main_contracts} @ ${main_price:.3f}\n"
+            f"   💰 Cost: ${main_cost:.2f}\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"🔴 <b>TRAP ({trap_side})</b>\n"
+            f"   📦 {trap_contracts} @ ${trap_price:.3f}\n"
+            f"   💰 Cost: ${trap_cost:.2f}\n"
+            f"   🚀 Potential: ${trap_potential:.2f} (+{trap_roi:.0f}%)\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"💵 <b>Total Invested: ${total_cost:.2f}</b>\n"
+            f"\n"
+            f"<i>Strategy: Main mengikuti sinyal, Trap profit dari reversal</i>"
         )
         await self.send_message(text)
     
