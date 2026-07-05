@@ -36,40 +36,45 @@ class MarketConfig:
 class StrategyConfig:
     """Strategy parameters."""
     min_price: float = 0.65
-    max_price: float = 0.91
-    min_elapsed_sec: int = 480
-    min_deviation_pct: float = 5.0
+    max_price: float = 0.75
+    min_elapsed_sec: int = 240
+    min_deviation_pct: float = 8.0
     max_deviation_pct: float = 100.0
     no_entry_before_end_sec: int = 90
-    momentum_window_sec: int = 120
-    vwap_window_sec: int = 30
+    momentum_window_sec: int = 90
+    vwap_window_sec: int = 60
     win_rate_csv: str = "data/win_rate.csv"
+    min_momentum_5s: float = 0.03
+    min_volume_1m: float = 1000
 
 
 @dataclass
 class EntryConfig:
     """Entry execution parameters."""
-    bet_amount_usd: float = 10.0
-    price_offset: float = 0.01
+    bet_amount_usd: float = 0.50
+    price_offset: float = 0.02
     order_type: str = "FAK"
-    max_retries: int = 5
+    max_retries: int = 3
     retry_delay_ms: int = 300
-    fill_timeout_ms: int = 2000
-    min_contracts: int = 5
+    fill_timeout_ms: int = 1000
+    min_contracts: int = 10
     min_order_usd: float = 1.0
-    max_entry_price: float = 0.91
+    max_entry_price: float = 0.75
     ws_recovery_timeout_sec: int = 10
+    max_daily_trades: int = 20
 
 
 @dataclass
 class HedgeConfig:
     """Hedge execution parameters."""
-    enabled: bool = True
+    enabled: bool = False
     hedge_price: float = 0.02
     hedge_contracts: int = 1
     order_type: str = "GTD"
     max_retries: int = 3
-    retry_delay_ms: int = 1000
+    retry_delay_ms: int = 300
+    hedge_only_if_profit: bool = True
+    min_floating_profit_pct: float = 0.20
 
 
 @dataclass
@@ -177,40 +182,45 @@ def load_config(config_path: Optional[str] = None) -> Config:
     strategy_data = data.get("strategy", {})
     strategy = StrategyConfig(
         min_price=strategy_data.get("min_price", 0.65),
-        max_price=strategy_data.get("max_price", 0.91),
-        min_elapsed_sec=strategy_data.get("min_elapsed_sec", 480),
-        min_deviation_pct=strategy_data.get("min_deviation_pct", 5.0),
+        max_price=strategy_data.get("max_price", 0.75),
+        min_elapsed_sec=strategy_data.get("min_elapsed_sec", 240),
+        min_deviation_pct=strategy_data.get("min_deviation_pct", 8.0),
         max_deviation_pct=strategy_data.get("max_deviation_pct", 100.0),
         no_entry_before_end_sec=strategy_data.get("no_entry_before_end_sec", 90),
-        momentum_window_sec=strategy_data.get("momentum_window_sec", 120),
-        vwap_window_sec=strategy_data.get("vwap_window_sec", 30),
+        momentum_window_sec=strategy_data.get("momentum_window_sec", 90),
+        vwap_window_sec=strategy_data.get("vwap_window_sec", 60),
         win_rate_csv=strategy_data.get("win_rate_csv", "data/win_rate.csv"),
+        min_momentum_5s=strategy_data.get("min_momentum_5s", 0.03),
+        min_volume_1m=strategy_data.get("min_volume_1m", 1000),
     )
     
     # Entry
     entry_data = data.get("entry", {})
     entry = EntryConfig(
-        bet_amount_usd=entry_data.get("bet_amount_usd", 10.0),
-        price_offset=entry_data.get("price_offset", 0.01),
+        bet_amount_usd=entry_data.get("bet_amount_usd", 0.50),
+        price_offset=entry_data.get("price_offset", 0.02),
         order_type=entry_data.get("order_type", "FAK"),
-        max_retries=entry_data.get("max_retries", 5),
+        max_retries=entry_data.get("max_retries", 3),
         retry_delay_ms=entry_data.get("retry_delay_ms", 300),
-        fill_timeout_ms=entry_data.get("fill_timeout_ms", 2000),
-        min_contracts=entry_data.get("min_contracts", 5),
+        fill_timeout_ms=entry_data.get("fill_timeout_ms", 1000),
+        min_contracts=entry_data.get("min_contracts", 10),
         min_order_usd=entry_data.get("min_order_usd", 1.0),
-        max_entry_price=entry_data.get("max_entry_price", 0.91),
+        max_entry_price=entry_data.get("max_entry_price", 0.75),
         ws_recovery_timeout_sec=entry_data.get("ws_recovery_timeout_sec", 10),
+        max_daily_trades=entry_data.get("max_daily_trades", 20),
     )
     
     # Hedge
     hedge_data = data.get("hedge", {})
     hedge = HedgeConfig(
-        enabled=hedge_data.get("enabled", True),
+        enabled=hedge_data.get("enabled", False),
         hedge_price=hedge_data.get("hedge_price", 0.02),
         hedge_contracts=hedge_data.get("hedge_contracts", 1),
         order_type=hedge_data.get("order_type", "GTD"),
         max_retries=hedge_data.get("max_retries", 3),
-        retry_delay_ms=hedge_data.get("retry_delay_ms", 1000),
+        retry_delay_ms=hedge_data.get("retry_delay_ms", 300),
+        hedge_only_if_profit=hedge_data.get("hedge_only_if_profit", True),
+        min_floating_profit_pct=hedge_data.get("min_floating_profit_pct", 0.20),
     )
     
     # Redeem

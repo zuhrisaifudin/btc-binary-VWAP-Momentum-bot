@@ -315,7 +315,16 @@ class TradingStats:
         self.current_market_slug: str = ""
         self.position_closed_this_market: bool = False
         self.entry_blocked: bool = False  # Блокировка повторных попыток после таймаута
+        
+        # Daily tracking for risk management
+        self.daily_trades: int = 0
+        self.daily_pnl: float = 0.0
+        self.last_trade_date: str = ""
+        self.max_daily_trades: int = 20  # Will be set from config
+        self.daily_stop_loss: float = -50.0  # Stop trading if daily loss exceeds this
+        
         self._load()
+        self._check_new_day()
     
     def _load(self):
         try:
@@ -369,7 +378,29 @@ class TradingStats:
             self.entry_blocked = False  # Сброс блокировки для нового рынка
             self._save()
     
+    def _check_new_day(self):
+        """Reset daily counters if it's a new day."""
+        today = datetime.now().strftime("%Y-%m-%d")
+        if self.last_trade_date != today:
+            logger.info(f"New trading day: {today}. Resetting daily counters.")
+            self.daily_trades = 0
+            self.daily_pnl = 0.0
+            self.last_trade_date = today
+    
     def can_enter(self) -> bool:
+        """Check if entry is allowed based on position, market state, and daily limits."""
+        self._check_new_day()
+        
+        # Check daily trade limit
+        if self.daily_trades >= self.max_daily_trades:
+            logger.warning(f"Daily trade limit reached: {self.daily_trades}/{self.max_daily_trades}")
+            return False
+        
+        # Check daily stop loss
+        if self.daily_pnl <= self.daily_stop_loss:
+            logger.warning(f"Daily stop loss hit: ${self.daily_pnl:.2f} (limit: ${self.daily_stop_loss:.2f})")
+            return False
+        
         return self.position is None and not self.position_closed_this_market and not self.entry_blocked
     
     def block_entry(self, reason: str = ""):
@@ -410,10 +441,22 @@ class TradingStats:
         won = final_price >= 0.70  # Win threshold
         entry_cost = self.position.contracts * self.position.entry_price
         
+        # Calculate PnL with hedge consideration
+        hedge_cost = 0
+        hedge_payout = 0
+        if self.position.hedged and not won:
+            # Hedge wins when main position loses
+            hedge_payout = self.position.hedge_contracts * 1.00
+            hedge_cost = self.position.hedge_contracts * self.position.hedge_price
+        
         if won:
-            pnl = self.position.contracts - entry_cost
+            pnl = (self.position.contracts - entry_cost) - hedge_cost
         else:
-            pnl = -entry_cost
+            pnl = (-entry_cost - hedge_cost) + hedge_payout
+        
+        # Update daily PnL
+        self.daily_pnl += pnl
+        self.daily_trades += 1
         
         # Calculate max drawdown from entry
         dd_abs = max(0, self.position.entry_price - self.position.min_price_seen)
@@ -436,6 +479,8 @@ class TradingStats:
         self.position = None
         self.position_closed_this_market = True
         self._save()
+        
+        logger.info(f"Trade closed: PnL=${pnl:+.4f} | Daily: ${self.daily_pnl:.2f} ({self.daily_trades} trades)")
         return record
     
     @property
@@ -1535,15 +1580,21 @@ class LiveTradingBot:
                       f"T≥{self.config.strategy.min_elapsed_sec}s, "
                       f"Dev {self.config.strategy.min_deviation_pct}%-{self.config.strategy.max_deviation_pct}%[/green]")
         console.print(f"[green]✓ Bet: ${self.config.entry.bet_amount_usd}, "
+                      f"Daily Limit: {self.config.entry.max_daily_trades} trades, "
                       f"Hedge: {'ON' if self.config.hedge.enabled else 'OFF'}[/green]")
         if self.config.simulation.enabled:
             if self.config.simulation.separate_trading_log:
                 self.stats = TradingStats(self.config.simulation.trading_log_path)
+                # Set daily trade limit from config
+                self.stats.max_daily_trades = self.config.entry.max_daily_trades
                 console.print(
                     f"[yellow]✓ Simulation stats: {self.config.simulation.trading_log_path}[/yellow]"
                 )
             else:
                 console.print("[yellow]✓ Simulation stats: same file as live (trading_log.json)[/yellow]")
+        else:
+            # Set daily trade limit from config for live trading too
+            self.stats.max_daily_trades = self.config.entry.max_daily_trades
 
         # Initialize trading components
         console.print("[yellow]Initializing trading components...[/yellow]")
