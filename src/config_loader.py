@@ -66,6 +66,7 @@ class HedgeConfig:
     """Hedge execution parameters."""
     enabled: bool = True
     hedge_price: float = 0.02
+    hedge_contracts: int = 1
     order_type: str = "GTD"
     max_retries: int = 3
     retry_delay_ms: int = 1000
@@ -206,6 +207,7 @@ def load_config(config_path: Optional[str] = None) -> Config:
     hedge = HedgeConfig(
         enabled=hedge_data.get("enabled", True),
         hedge_price=hedge_data.get("hedge_price", 0.02),
+        hedge_contracts=hedge_data.get("hedge_contracts", 1),
         order_type=hedge_data.get("order_type", "GTD"),
         max_retries=hedge_data.get("max_retries", 3),
         retry_delay_ms=hedge_data.get("retry_delay_ms", 1000),

@@ -1618,6 +1618,7 @@ class LiveTradingBot:
         hedge_config = HedgeManagerConfig(
             enabled=self.config.hedge.enabled,
             hedge_price=self.config.hedge.hedge_price,
+            hedge_contracts=self.config.hedge.get("hedge_contracts", 1),
             order_type=self.config.hedge.order_type,
             max_retries=self.config.hedge.max_retries,
             retry_delay_ms=self.config.hedge.retry_delay_ms,
@@ -2014,14 +2015,15 @@ class LiveTradingBot:
             
             logger.info(f"Entry complete: {result.contracts_filled} @ {result.avg_price:.3f}")
             
-            # === PLACE GTD HEDGE ORDER ===
+            # === PLACE INSTANT HEDGE ORDER (FAK at market price) ===
             if self.config.hedge.enabled:
                 self.hedge_mgr.set_position(
                     opposite_token_id=opposite_token.token_id,
                     contracts=result.contracts_filled
                 )
                 
-                hedge_result = await self.hedge_mgr.place_gtd_hedge()
+                # Use instant hedge instead of GTD
+                hedge_result = await self.hedge_mgr.place_instant_hedge()
                 
                 if hedge_result.success:
                     self.dashboard.hedge_flash = True
@@ -2030,25 +2032,25 @@ class LiveTradingBot:
                     hsim = "🎮 <b>[SIMULATION]</b>\n" if self.config.simulation.enabled else ""
                     await self.telegram.send_message(
                         f"{hsim}"
-                        f"🛡️ <b>Hedge Order Placed (GTD)</b>\n"
-                        f"📦 {hedge_result.contracts} contracts @ ${hedge_result.price}\n"
+                        f"🛡️ <b>Hedge Order Placed (INSTANT)</b>\n"
+                        f"📦 {hedge_result.contracts} contracts @ ${hedge_result.price:.3f}\n"
                         f"💰 Cost: ${hedge_cost:.2f}\n"
                         f"🔖 Order ID: {hedge_result.order_id[:20]}...\n"
-                        f"📋 Status: LIVE (passive)\n"
+                        f"📋 Status: FILLED (active protection)\n"
                         f"🔄 Attempts: {hedge_result.attempts}"
                     )
                     
-                    # Register WebSocket handler for hedge fills
-                    self._register_hedge_ws_handler()
-                    
-                    logger.info(f"GTD hedge placed: {hedge_result.contracts} @ ${hedge_result.price}")
+                    logger.info(
+                        f"Instant hedge: {hedge_result.contracts} @ ${hedge_result.price:.3f}, "
+                        f"Cost: ${hedge_cost:.2f}"
+                    )
                 else:
                     await self.telegram.send_message(
                         f"⚠️ <b>Hedge Failed</b>\n"
                         f"❌ {hedge_result.error}\n"
                         f"🔄 Attempts: {hedge_result.attempts}"
                     )
-                    logger.error(f"Hedge failed: {hedge_result.error}")
+                    logger.error(f"Instant hedge failed: {hedge_result.error}")
         else:
             signal_logger.error(f"ENTRY FAILED: {result.error}")
             signal_logger.info(f"  Attempts: {result.attempts}")
@@ -2135,7 +2137,8 @@ class LiveTradingBot:
                                 contracts=rec_contracts
                             )
                             
-                            hedge_result = await self.hedge_mgr.place_gtd_hedge()
+                            # Use instant hedge instead of GTD
+                            hedge_result = await self.hedge_mgr.place_instant_hedge()
                             
                             if hedge_result.success:
                                 self.dashboard.hedge_flash = True
@@ -2143,16 +2146,18 @@ class LiveTradingBot:
                                 hsim2 = "🎮 <b>[SIMULATION]</b>\n" if self.config.simulation.enabled else ""
                                 await self.telegram.send_message(
                                     f"{hsim2}"
-                                    f"🛡️ <b>Hedge Order Placed (GTD)</b>\n"
-                                    f"📦 {hedge_result.contracts} contracts @ ${hedge_result.price}\n"
+                                    f"🛡️ <b>Hedge Order Placed (INSTANT)</b>\n"
+                                    f"📦 {hedge_result.contracts} contracts @ ${hedge_result.price:.3f}\n"
                                     f"💰 Cost: ${hedge_cost:.2f}\n"
                                     f"🔖 Order ID: {hedge_result.order_id[:20]}...\n"
-                                    f"📋 Status: LIVE (passive)\n"
+                                    f"📋 Status: FILLED (active protection)\n"
                                     f"🔄 Attempts: {hedge_result.attempts}"
                                 )
                                 
-                                self._register_hedge_ws_handler()
-                                logger.info(f"GTD hedge placed after recovery: {hedge_result.contracts} @ ${hedge_result.price}")
+                                logger.info(
+                                    f"Instant hedge after recovery: {hedge_result.contracts} @ ${hedge_result.price:.3f}, "
+                                    f"Cost: ${hedge_cost:.2f}"
+                                )
                             else:
                                 await self.telegram.send_message(
                                     f"⚠️ <b>Hedge Failed (after recovery)</b>\n"

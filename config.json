@@ -35,9 +35,10 @@
   "hedge": {
     "enabled": true,
     "hedge_price": 0.02,
-    "order_type": "GTD",
+    "hedge_contracts": 1,
+    "order_type": "FAK",
     "max_retries": 3,
-    "retry_delay_ms": 1000
+    "retry_delay_ms": 300
   },
 
   "redeem": {
