@@ -26,21 +26,7 @@ venv/
 coverage/
 htmlcov/
 
-# Python specific
-*.pyo
-*.pyd
-*.so
-*.egg-info/
-.Python
-*.pot
-*.po
-*~
-.pytest_cache/
+# Python cache
 .mypy_cache/
-.tox/
-.coverage*
-
-# System files
-.DS_Store
-Thumbs.db
+.pytest_cache/
 ```

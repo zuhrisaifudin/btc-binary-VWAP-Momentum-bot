@@ -78,6 +78,17 @@ class HedgeConfig:
 
 
 @dataclass
+class DualPositionConfig:
+    """Dual Position (Trap Play) strategy parameters."""
+    enabled: bool = True
+    total_budget_usd: float = 2.00
+    main_allocation_pct: float = 0.85
+    trap_allocation_pct: float = 0.15
+    max_trap_price: float = 0.25
+    order_type: str = "FAK"
+
+
+@dataclass
 class RedeemConfig:
     """Auto-redeem parameters."""
     enabled: bool = True
@@ -139,6 +150,7 @@ class Config:
     strategy: StrategyConfig
     entry: EntryConfig
     hedge: HedgeConfig
+    dual_position: DualPositionConfig
     redeem: RedeemConfig
     telegram: TelegramConfig
     web_dashboard: WebDashboardConfig
@@ -247,6 +259,17 @@ def load_config(config_path: Optional[str] = None) -> Config:
         port=int(web_data.get("port", 8765)),
     )
     
+    # Dual Position (Trap Play)
+    dual_data = data.get("dual_position", {})
+    dual_position = DualPositionConfig(
+        enabled=dual_data.get("enabled", True),
+        total_budget_usd=dual_data.get("total_budget_usd", 2.00),
+        main_allocation_pct=dual_data.get("main_allocation_pct", 0.85),
+        trap_allocation_pct=dual_data.get("trap_allocation_pct", 0.15),
+        max_trap_price=dual_data.get("max_trap_price", 0.25),
+        order_type=dual_data.get("order_type", "FAK"),
+    )
+    
     # Polymarket (from env only - secrets)
     polymarket = PolymarketConfig(
         private_key=os.getenv("PRIVATE_KEY", ""),
@@ -266,6 +289,7 @@ def load_config(config_path: Optional[str] = None) -> Config:
         strategy=strategy,
         entry=entry,
         hedge=hedge,
+        dual_position=dual_position,
         redeem=redeem,
         telegram=telegram,
         web_dashboard=web_dashboard,

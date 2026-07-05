@@ -462,7 +462,170 @@ class OrderExecutor:
         
         try:
             await asyncio.to_thread(
-                self._client.cancel,
+                self._client.cancel_order,
+                order_id
+            )
+            logger.info(f"Order cancelled: {order_id[:20]}...")
+            return True
+        except Exception as e:
+            logger.error(f"Cancel order error: {e}")
+            return False
+    
+    async def execute_dual_position(
+        self,
+        main_token_id: str,
+        trap_token_id: str,
+        total_budget_usd: float,
+        main_allocation_pct: float = 0.85,
+        trap_allocation_pct: float = 0.15,
+        max_trap_price: float = 0.25
+    ) -> Tuple[bool, OrderResult, OrderResult]:
+        """
+        Execute dual position strategy (Main + Trap/Proteksi).
+        
+        Strategi ini membeli dua sisi secara bersamaan:
+        - Posisi Utama: Mengikuti sinyal (misal UP jika bullish)
+        - Posisi Trap: Sisi sebaliknya sebagai proteksi/profit dari reversal
+        
+        Args:
+            main_token_id: Token untuk posisi utama (misal UP token)
+            trap_token_id: Token untuk posisi trap (misal DOWN token)
+            total_budget_usd: Total budget dalam USD (misal $2.00)
+            main_allocation_pct: Persentase untuk posisi utama (default 85%)
+            trap_allocation_pct: Persentase untuk posisi trap (default 15%)
+            max_trap_price: Harga maksimum untuk trap (jika lebih mahal, skip trap)
+        
+        Returns:
+            Tuple of (success, main_result, trap_result)
+        """
+        order_logger.info("=" * 60)
+        order_logger.info("DUAL POSITION STRATEGY (Trap Play)")
+        order_logger.info(f"  Total Budget: ${total_budget_usd:.2f}")
+        order_logger.info(f"  Main Allocation: {main_allocation_pct*100:.0f}% = ${total_budget_usd * main_allocation_pct:.2f}")
+        order_logger.info(f"  Trap Allocation: {trap_allocation_pct*100:.0f}% = ${total_budget_usd * trap_allocation_pct:.2f}")
+        order_logger.info("=" * 60)
+        
+        # Dapatkan harga pasar saat ini untuk kedua token
+        main_price = await self.get_best_ask(main_token_id)
+        trap_price = await self.get_best_ask(trap_token_id)
+        
+        if not main_price or not trap_price:
+            order_logger.error("DUAL POSITION: Could not get market prices for both tokens")
+            return False, OrderResult(success=False, error="Could not get market prices"), OrderResult(success=False, error="Could not get market prices")
+        
+        order_logger.info(f"  Market Prices:")
+        order_logger.info(f"    Main ({main_token_id[:30]}...): ${main_price:.4f}")
+        order_logger.info(f"    Trap ({trap_token_id[:30]}...): ${trap_price:.4f}")
+        order_logger.info(f"    Sum: ${main_price + trap_price:.4f} (should be ~$1.00)")
+        
+        # Validasi: harga main + trap harus ≈ 1.00
+        price_sum = main_price + trap_price
+        if abs(price_sum - 1.0) > 0.05:
+            order_logger.warning(f"  Price sum {price_sum:.4f} deviates significantly from $1.00")
+        
+        # Cek apakah trap masih menarik (harga murah)
+        if trap_price > max_trap_price:
+            order_logger.warning(f"  Trap price ${trap_price:.4f} > max ${max_trap_price:.4f} - skipping trap position")
+            # Fallback ke single position saja
+            single_result = await self.execute_entry_with_retry(
+                main_token_id,
+                ExecutionConfig(
+                    bet_amount_usd=total_budget_usd,
+                    price_offset=0.0,  # Gunakan harga pasar langsung
+                    max_retries=3,
+                    retry_delay_ms=300
+                )
+            )
+            return single_result.success, single_result, OrderResult(success=True, error="Trap skipped (price too high)")
+        
+        # Hitung alokasi budget
+        main_budget = total_budget_usd * main_allocation_pct
+        trap_budget = total_budget_usd * trap_allocation_pct
+        
+        # Hitung jumlah kontrak untuk masing-masing
+        main_contracts = self._calculate_contracts(main_budget, main_price)
+        trap_contracts = self._calculate_contracts(trap_budget, trap_price)
+        
+        # Validasi ukuran order
+        main_contracts, _ = self._validate_order_size(main_contracts, main_price)
+        trap_contracts, _ = self._validate_order_size(trap_contracts, trap_price)
+        
+        order_logger.info(f"  Order Calculation:")
+        order_logger.info(f"    Main: ${main_budget:.2f} / ${main_price:.4f} = {main_contracts} contracts")
+        order_logger.info(f"    Trap: ${trap_budget:.2f} / ${trap_price:.4f} = {trap_contracts} contracts")
+        
+        # Eksekusi kedua order secara paralel untuk kecepatan
+        order_logger.info("  Executing both orders simultaneously...")
+        
+        main_task = self.place_fak_order(main_token_id, main_price, main_contracts)
+        trap_task = self.place_fak_order(trap_token_id, trap_price, trap_contracts)
+        
+        main_response, trap_response = await asyncio.gather(main_task, trap_task, return_exceptions=True)
+        
+        # Process main result
+        if isinstance(main_response, Exception):
+            main_success = False
+            main_order_id = ""
+            main_result_dict = {"error": str(main_response)}
+            order_logger.error(f"  Main order exception: {main_response}")
+        else:
+            main_success, main_order_id, main_result_dict = main_response
+        
+        # Process trap result
+        if isinstance(trap_response, Exception):
+            trap_success = False
+            trap_order_id = ""
+            trap_result_dict = {"error": str(trap_response)}
+            order_logger.error(f"  Trap order exception: {trap_response}")
+        else:
+            trap_success, trap_order_id, trap_result_dict = trap_response
+        
+        # Build OrderResult objects
+        main_result = OrderResult(
+            success=main_success,
+            order_id=main_order_id,
+            contracts_filled=main_contracts if main_success else 0,
+            avg_price=main_price,
+            total_cost=main_contracts * main_price if main_success else 0,
+            attempts=1,
+            error=main_result_dict.get("error", "") if not main_success else ""
+        )
+        
+        trap_result = OrderResult(
+            success=trap_success,
+            order_id=trap_order_id,
+            contracts_filled=trap_contracts if trap_success else 0,
+            avg_price=trap_price,
+            total_cost=trap_contracts * trap_price if trap_success else 0,
+            attempts=1,
+            error=trap_result_dict.get("error", "") if not trap_success else ""
+        )
+        
+        # Determine overall success (at least main position filled)
+        overall_success = main_success
+        
+        order_logger.info("-" * 50)
+        order_logger.info("DUAL POSITION RESULTS:")
+        order_logger.info(f"  Main: {'✅ FILLED' if main_success else '❌ FAILED'} | {main_contracts} @ ${main_price:.4f} = ${main_result.total_cost:.2f}")
+        order_logger.info(f"  Trap: {'✅ FILLED' if trap_success else '❌ FAILED'} | {trap_contracts} @ ${trap_price:.4f} = ${trap_result.total_cost:.2f}")
+        order_logger.info(f"  Total Spent: ${main_result.total_cost + trap_result.total_cost:.2f}")
+        order_logger.info("=" * 60)
+        
+        if overall_success:
+            logger.info(f"Dual position executed: Main={main_contracts}, Trap={trap_contracts}, Total=${main_result.total_cost + trap_result.total_cost:.2f}")
+        else:
+            logger.warning(f"Dual position failed: Main order did not fill")
+        
+        return overall_success, main_result, trap_result
+    
+    async def cancel_order(self, order_id: str) -> bool:
+        """Cancel an order."""
+        if not self._client:
+            return False
+        
+        try:
+            await asyncio.to_thread(
+                self._client.cancel_order,
                 order_id
             )
             logger.info(f"Order cancelled: {order_id[:20]}...")
