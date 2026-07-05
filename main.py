@@ -1669,7 +1669,7 @@ class LiveTradingBot:
         hedge_config = HedgeManagerConfig(
             enabled=self.config.hedge.enabled,
             hedge_price=self.config.hedge.hedge_price,
-            hedge_contracts=self.config.hedge.get("hedge_contracts", 1),
+            hedge_contracts=self.config.hedge.hedge_contracts,
             order_type=self.config.hedge.order_type,
             max_retries=self.config.hedge.max_retries,
             retry_delay_ms=self.config.hedge.retry_delay_ms,
@@ -2009,227 +2009,148 @@ class LiveTradingBot:
         
         logger.info(f"Executing entry: {token_name}")
         
-        exec_config = ExecutionConfig(
-            bet_amount_usd=self.config.entry.bet_amount_usd,
-            price_offset=self.config.entry.price_offset,
-            max_retries=self.config.entry.max_retries,
-            retry_delay_ms=self.config.entry.retry_delay_ms,
-            fill_timeout_ms=self.config.entry.fill_timeout_ms,
-            min_contracts=self.config.entry.min_contracts,
-            min_order_usd=self.config.entry.min_order_usd,
-            max_entry_price=self.config.entry.max_entry_price
-        )
+        use_dual = hasattr(self.config, 'dual_position') and self.config.dual_position.enabled
         
-        result = await self.executor.execute_entry(
-            token_id=token.token_id,
-            config=exec_config,
-            websocket_price=token.best_ask  # Для ПОКУПКИ нужен ASK! Мы платим продавцам.
-        )
-        
-        if result.success:
-            self.stats.record_entry(
-                token_name=token_name,
-                token_id=token.token_id,
-                opposite_token_id=opposite_token.token_id,
-                price=result.avg_price,
-                contracts=result.contracts_filled,
-                market_slug=self.state.slug
-            )
-            self._simulation_log_entry(
-                token_name, result.avg_price, result.contracts_filled, result.total_cost
+        if use_dual:
+            success, main_res, trap_res = await self.executor.execute_dual_position(
+                main_token_id=token.token_id,
+                trap_token_id=opposite_token.token_id,
+                total_budget_usd=self.config.dual_position.total_budget_usd,
+                main_allocation_pct=self.config.dual_position.main_allocation_pct,
+                trap_allocation_pct=self.config.dual_position.trap_allocation_pct,
+                max_trap_price=self.config.dual_position.max_trap_price
             )
             
-            self.dashboard.entry_flash = True
-            
-            # Log successful entry
-            signal_logger.info(
-                "ENTRY EXECUTED SUCCESSFULLY (SIMULATED)"
-                if self.config.simulation.enabled
-                else "ENTRY EXECUTED SUCCESSFULLY"
-            )
-            signal_logger.info(f"  Token: {token_name}")
-            signal_logger.info(f"  Contracts: {result.contracts_filled}")
-            signal_logger.info(f"  Avg Price: {result.avg_price:.4f}")
-            signal_logger.info(f"  Total Cost: ${result.total_cost:.2f}")
-            signal_logger.info(f"  Attempts: {result.attempts}")
-            signal_logger.info("-" * 40)
-            
-            await self.telegram.notify_entry(
-                side=token_name,
-                price=result.avg_price,
-                contracts=result.contracts_filled,
-                cost=result.total_cost,
-                retries=result.attempts,
-                interval_minutes=self.config.market.interval_minutes,
-                simulation=self.config.simulation.enabled,
-            )
-            
-            logger.info(f"Entry complete: {result.contracts_filled} @ {result.avg_price:.3f}")
-            
-            # === PLACE INSTANT HEDGE ORDER (FAK at market price) ===
-            if self.config.hedge.enabled:
-                self.hedge_mgr.set_position(
+            # 1. MAIN POSITION
+            if main_res.success and main_res.contracts_filled > 0:
+                self.stats.record_entry(
+                    token_name=token_name,
+                    token_id=token.token_id,
                     opposite_token_id=opposite_token.token_id,
-                    contracts=result.contracts_filled
+                    price=main_res.avg_price,
+                    contracts=main_res.contracts_filled,
+                    market_slug=self.state.slug
+                )
+                self._simulation_log_entry(
+                    token_name, main_res.avg_price, main_res.contracts_filled, main_res.total_cost
                 )
                 
-                # Use instant hedge instead of GTD
-                hedge_result = await self.hedge_mgr.place_instant_hedge()
+                self.dashboard.entry_flash = True
                 
-                if hedge_result.success:
-                    self.dashboard.hedge_flash = True
-                    hedge_cost = hedge_result.contracts * hedge_result.price
-                    
-                    hsim = "🎮 <b>[SIMULATION]</b>\n" if self.config.simulation.enabled else ""
-                    await self.telegram.send_message(
-                        f"{hsim}"
-                        f"🛡️ <b>Hedge Order Placed (INSTANT)</b>\n"
-                        f"📦 {hedge_result.contracts} contracts @ ${hedge_result.price:.3f}\n"
-                        f"💰 Cost: ${hedge_cost:.2f}\n"
-                        f"🔖 Order ID: {hedge_result.order_id[:20]}...\n"
-                        f"📋 Status: FILLED (active protection)\n"
-                        f"🔄 Attempts: {hedge_result.attempts}"
-                    )
-                    
-                    logger.info(
-                        f"Instant hedge: {hedge_result.contracts} @ ${hedge_result.price:.3f}, "
-                        f"Cost: ${hedge_cost:.2f}"
-                    )
-                else:
-                    await self.telegram.send_message(
-                        f"⚠️ <b>Hedge Failed</b>\n"
-                        f"❌ {hedge_result.error}\n"
-                        f"🔄 Attempts: {hedge_result.attempts}"
-                    )
-                    logger.error(f"Instant hedge failed: {hedge_result.error}")
-        else:
-            signal_logger.error(f"ENTRY FAILED: {result.error}")
-            signal_logger.info(f"  Attempts: {result.attempts}")
-            signal_logger.info("-" * 40)
-            logger.error(f"Entry failed: {result.error}")
+                signal_logger.info("MAIN ENTRY EXECUTED SUCCESSFULLY")
+                signal_logger.info(f"  Token: {token_name}")
+                signal_logger.info(f"  Contracts: {main_res.contracts_filled}")
+                signal_logger.info(f"  Avg Price: {main_res.avg_price:.4f}")
+                signal_logger.info(f"  Total Cost: ${main_res.total_cost:.2f}")
+                signal_logger.info("-" * 40)
+                
+                await self.telegram.notify_entry(
+                    side=token_name,
+                    price=main_res.avg_price,
+                    contracts=main_res.contracts_filled,
+                    cost=main_res.total_cost,
+                    retries=main_res.attempts,
+                    interval_minutes=self.config.market.interval_minutes,
+                    simulation=self.config.simulation.enabled,
+                )
+                logger.info(f"Main entry complete: {main_res.contracts_filled} @ {main_res.avg_price:.3f}")
+            else:
+                signal_logger.error(f"MAIN ENTRY FAILED: {main_res.error}")
+                logger.error(f"Main entry failed: {main_res.error}")
+                if main_res.was_timeout:
+                    self.stats.block_entry("Network timeout on main entry.")
+                    await self.telegram.send_message("⚠️ <b>TIMEOUT</b> on Main Entry. Blocked.")
             
-            # ============================================================
-            # КРИТИЧНО: Если был таймаут - НЕ делаем retry (двойная покупка!)
-            # Вместо этого проверяем через WebSocket - может ордер исполнился
-            # ============================================================
-            if result.was_timeout:
-                signal_logger.error("🛑 TIMEOUT: Checking WebSocket for fills...")
-                logger.warning("Timeout detected — starting WS recovery")
+            # 2. TRAP POSITION
+            if trap_res.success and trap_res.contracts_filled > 0:
+                self.dashboard.hedge_flash = True
                 
-                recovered = False
+                hsim = "🎮 <b>[SIMULATION]</b>\n" if self.config.simulation.enabled else ""
+                trap_name = "DOWN" if token_name == "UP" else "UP"
+                await self.telegram.send_message(
+                    f"{hsim}"
+                    f"🪤 <b>TRAP Order Placed (Dual Position)</b>\n"
+                    f"📊 Token: {trap_name}\n"
+                    f"📦 {trap_res.contracts_filled} contracts @ ${trap_res.avg_price:.3f}\n"
+                    f"💰 Cost: ${trap_res.total_cost:.2f}\n"
+                    f"🔖 Order ID: {trap_res.order_id[:20]}...\n"
+                    f"📋 Status: FILLED (active trap)\n"
+                )
                 
-                if self.user_ws and self.user_ws.connected:
-                    recovery_timeout = self.config.entry.ws_recovery_timeout_sec
-                    
-                    signal_logger.info(f"  Checking WS for fills on {token.token_id[:30]}...")
-                    signal_logger.info(f"  Recovery timeout: {recovery_timeout}s")
-                    
-                    fill_data = await self.user_ws.wait_for_fills_on_token(
-                        token_id=token.token_id,
-                        timeout=recovery_timeout
+                signal_logger.info("TRAP ENTRY EXECUTED SUCCESSFULLY")
+                signal_logger.info(f"  Token: {trap_name}")
+                signal_logger.info(f"  Contracts: {trap_res.contracts_filled}")
+                signal_logger.info(f"  Avg Price: {trap_res.avg_price:.4f}")
+                signal_logger.info(f"  Total Cost: ${trap_res.total_cost:.2f}")
+                logger.info(f"Trap entry complete: {trap_res.contracts_filled} @ {trap_res.avg_price:.3f}")
+            elif not trap_res.success and "skipped" not in trap_res.error.lower():
+                signal_logger.error(f"TRAP ENTRY FAILED: {trap_res.error}")
+                logger.error(f"Trap entry failed: {trap_res.error}")
+                await self.telegram.send_message(f"⚠️ <b>TRAP Failed</b>\n❌ {trap_res.error}")
+                
+        else:
+            # --- FALLBACK: ORIGINAL SINGLE ENTRY (No Dual Position) ---
+            exec_config = ExecutionConfig(
+                bet_amount_usd=self.config.entry.bet_amount_usd,
+                price_offset=self.config.entry.price_offset,
+                max_retries=self.config.entry.max_retries,
+                retry_delay_ms=self.config.entry.retry_delay_ms,
+                fill_timeout_ms=self.config.entry.fill_timeout_ms,
+                min_contracts=self.config.entry.min_contracts,
+                min_order_usd=self.config.entry.min_order_usd,
+                max_entry_price=self.config.entry.max_entry_price
+            )
+            
+            result = await self.executor.execute_entry(
+                token_id=token.token_id,
+                config=exec_config,
+                websocket_price=token.best_ask
+            )
+            
+            if result.success:
+                self.stats.record_entry(
+                    token_name=token_name,
+                    token_id=token.token_id,
+                    opposite_token_id=opposite_token.token_id,
+                    price=result.avg_price,
+                    contracts=result.contracts_filled,
+                    market_slug=self.state.slug
+                )
+                self._simulation_log_entry(
+                    token_name, result.avg_price, result.contracts_filled, result.total_cost
+                )
+                
+                self.dashboard.entry_flash = True
+                signal_logger.info("ENTRY EXECUTED SUCCESSFULLY")
+                await self.telegram.notify_entry(
+                    side=token_name,
+                    price=result.avg_price,
+                    contracts=result.contracts_filled,
+                    cost=result.total_cost,
+                    retries=result.attempts,
+                    interval_minutes=self.config.market.interval_minutes,
+                    simulation=self.config.simulation.enabled,
+                )
+                
+                if self.config.hedge.enabled:
+                    self.hedge_mgr.set_position(
+                        opposite_token_id=opposite_token.token_id,
+                        contracts=result.contracts_filled
                     )
-                    
-                    if fill_data and fill_data["contracts"] > 0:
-                        # ==============================
-                        # RECOVERY: Order DID execute!
-                        # ==============================
-                        recovered = True
-                        rec_contracts = fill_data["contracts"]
-                        rec_price = fill_data["avg_price"]
-                        rec_cost = fill_data["total_cost"]
-                        
-                        signal_logger.info("=" * 60)
-                        signal_logger.info("✅ TIMEOUT RECOVERY: Position found via WebSocket!")
-                        signal_logger.info(f"  Contracts: {rec_contracts}")
-                        signal_logger.info(f"  Avg Price: {rec_price:.4f}")
-                        signal_logger.info(f"  Total Cost: ${rec_cost:.2f}")
-                        signal_logger.info(f"  Fills: {len(fill_data['fills'])}")
-                        signal_logger.info("=" * 60)
-                        
-                        logger.info(f"Timeout recovery: {rec_contracts} @ {rec_price:.4f}")
-                        
-                        # Record position as if entry succeeded
-                        self.stats.record_entry(
-                            token_name=token_name,
-                            token_id=token.token_id,
-                            opposite_token_id=opposite_token.token_id,
-                            price=rec_price,
-                            contracts=rec_contracts,
-                            market_slug=self.state.slug
-                        )
-                        self._simulation_log_entry(
-                            token_name, rec_price, rec_contracts, rec_cost
-                        )
-                        
-                        self.dashboard.entry_flash = True
-                        
+                    hedge_result = await self.hedge_mgr.place_instant_hedge()
+                    if hedge_result.success:
+                        self.dashboard.hedge_flash = True
+                        hsim = "🎮 <b>[SIMULATION]</b>\n" if self.config.simulation.enabled else ""
                         await self.telegram.send_message(
-                            f"🔄 <b>Timeout Recovery!</b>\n"
-                            f"Order filled despite HTTP timeout.\n"
-                            f"📊 {token_name} {rec_contracts} @ ${rec_price:.4f}\n"
-                            f"💰 Cost: ${rec_cost:.2f}\n"
-                            f"Market: {self.state.slug}"
+                            f"{hsim}🛡️ <b>Hedge Order Placed (INSTANT)</b>\n"
+                            f"📦 {hedge_result.contracts} contracts @ ${hedge_result.price:.3f}\n"
+                            f"💰 Cost: ${hedge_result.contracts * hedge_result.price:.2f}\n"
+                            f"📋 Status: FILLED\n"
                         )
-                        
-                        await self.telegram.notify_entry(
-                            side=token_name,
-                            price=rec_price,
-                            contracts=rec_contracts,
-                            cost=rec_cost,
-                            retries=result.attempts,
-                            interval_minutes=self.config.market.interval_minutes,
-                            simulation=self.config.simulation.enabled,
-                        )
-                        
-                        # Place hedge (normal flow)
-                        if self.config.hedge.enabled:
-                            self.hedge_mgr.set_position(
-                                opposite_token_id=opposite_token.token_id,
-                                contracts=rec_contracts
-                            )
-                            
-                            # Use instant hedge instead of GTD
-                            hedge_result = await self.hedge_mgr.place_instant_hedge()
-                            
-                            if hedge_result.success:
-                                self.dashboard.hedge_flash = True
-                                hedge_cost = hedge_result.contracts * hedge_result.price
-                                hsim2 = "🎮 <b>[SIMULATION]</b>\n" if self.config.simulation.enabled else ""
-                                await self.telegram.send_message(
-                                    f"{hsim2}"
-                                    f"🛡️ <b>Hedge Order Placed (INSTANT)</b>\n"
-                                    f"📦 {hedge_result.contracts} contracts @ ${hedge_result.price:.3f}\n"
-                                    f"💰 Cost: ${hedge_cost:.2f}\n"
-                                    f"🔖 Order ID: {hedge_result.order_id[:20]}...\n"
-                                    f"📋 Status: FILLED (active protection)\n"
-                                    f"🔄 Attempts: {hedge_result.attempts}"
-                                )
-                                
-                                logger.info(
-                                    f"Instant hedge after recovery: {hedge_result.contracts} @ ${hedge_result.price:.3f}, "
-                                    f"Cost: ${hedge_cost:.2f}"
-                                )
-                            else:
-                                await self.telegram.send_message(
-                                    f"⚠️ <b>Hedge Failed (after recovery)</b>\n"
-                                    f"❌ {hedge_result.error}"
-                                )
-                    else:
-                        signal_logger.info("  WS recovery: no fills found")
-                else:
-                    signal_logger.warning("  WS not connected — cannot recover")
-                
-                if not recovered:
-                    # No fill found — block entry (original behavior)
-                    self.stats.block_entry("Network timeout - no fill detected via WS. Blocking re-entry.")
-                    signal_logger.error("🛑 ENTRY BLOCKED: Timeout + no WS fill detected")
-                    await self.telegram.send_message(
-                        f"⚠️ <b>TIMEOUT — No Fill Detected</b>\n"
-                        f"Order status unknown after timeout.\n"
-                        f"WebSocket recovery found nothing.\n"
-                        f"Re-entry blocked.\n"
-                        f"Market: {self.state.slug}"
-                    )
+            else:
+                signal_logger.error(f"ENTRY FAILED: {result.error}")
+                if result.was_timeout:
+                    self.stats.block_entry("Network timeout - no fill detected.")
     
     def _register_hedge_ws_handler(self):
         """Register WebSocket handler to track hedge order fills."""
