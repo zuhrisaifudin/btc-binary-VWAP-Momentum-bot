@@ -538,7 +538,7 @@ class OrderExecutor:
         if trap_price > max_trap_price:
             order_logger.warning(f"  Trap price ${trap_price:.4f} > max ${max_trap_price:.4f} - skipping trap position")
             # Fallback ke single position saja
-            single_result = await self.execute_entry_with_retry(
+            single_result = await self.execute_entry(
                 main_token_id,
                 ExecutionConfig(
                     bet_amount_usd=total_budget_usd,
@@ -568,6 +568,57 @@ class OrderExecutor:
         # Eksekusi kedua order secara paralel untuk kecepatan
         order_logger.info("  Executing both orders simultaneously...")
         
+        # Jika simulation_mode, gunakan _simulate_fill untuk kedua posisi
+        if self.simulation_mode:
+            order_logger.info("  SIMULATION MODE: Using hypothetical fills for both positions")
+            
+            # Create temporary ExecutionConfig for simulation
+            main_config = ExecutionConfig(
+                bet_amount_usd=main_budget,
+                price_offset=0.0,  # Use market price directly in simulation
+                max_retries=1,
+                max_entry_price=max_trap_price + 0.7  # Allow reasonable price range
+            )
+            trap_config = ExecutionConfig(
+                bet_amount_usd=trap_budget,
+                price_offset=0.0,
+                max_retries=1,
+                max_entry_price=max_trap_price
+            )
+            
+            # Simulate both fills
+            main_result = self._simulate_fill(main_config, main_price)
+            trap_result = self._simulate_fill(trap_config, trap_price)
+            
+            # Update stats for simulation
+            if main_result.success:
+                self.orders_placed += 1
+                self.orders_filled += 1
+                self.total_contracts += main_result.contracts_filled
+                self.total_spent += main_result.total_cost
+            if trap_result.success:
+                self.orders_placed += 1
+                self.orders_filled += 1
+                self.total_contracts += trap_result.contracts_filled
+                self.total_spent += trap_result.total_cost
+            
+            overall_success = main_result.success and trap_result.success
+            
+            order_logger.info("-" * 50)
+            order_logger.info("DUAL POSITION RESULTS (SIMULATION):")
+            order_logger.info(f"  Main: {'✅ FILLED' if main_result.success else '❌ FAILED'} | {main_result.contracts_filled} @ ${main_result.avg_price:.4f} = ${main_result.total_cost:.2f}")
+            order_logger.info(f"  Trap: {'✅ FILLED' if trap_result.success else '❌ FAILED'} | {trap_result.contracts_filled} @ ${trap_result.avg_price:.4f} = ${trap_result.total_cost:.2f}")
+            order_logger.info(f"  Total Spent: ${main_result.total_cost + trap_result.total_cost:.2f}")
+            order_logger.info("=" * 60)
+            
+            if overall_success:
+                logger.info(f"Dual position simulated: Main={main_result.contracts_filled}, Trap={trap_result.contracts_filled}, Total=${main_result.total_cost + trap_result.total_cost:.2f}")
+            else:
+                logger.warning(f"Dual position simulation failed")
+            
+            return overall_success, main_result, trap_result
+        
+        # LIVE MODE: Place actual FAK orders
         main_task = self.place_fak_order(main_token_id, main_price, main_contracts)
         trap_task = self.place_fak_order(trap_token_id, trap_price, trap_contracts)
         
