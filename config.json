@@ -5,18 +5,18 @@
     "interval_minutes": 5
   },
   "strategy": {
-    "min_price": 0.65,
-    "max_price": 0.85,
+    "min_price": 0.60,
+    "max_price": 0.90,
     "_comment_5m": "Below min_elapsed / no_entry_cutoff are scaled for 5m (300s). For 15m, raise e.g. min_elapsed_sec 530, no_entry_before_end_sec 335.",
-    "min_elapsed_sec": 240,
-    "min_deviation_pct": 0.5,
+    "min_elapsed_sec": 60,
+    "min_deviation_pct": 0.1,
     "max_deviation_pct": 100,
-    "no_entry_before_end_sec": 90,
+    "no_entry_before_end_sec": 30,
     "momentum_window_sec": 90,
     "vwap_window_sec": 60,
     "win_rate_csv": "data/win_rate.csv",
-    "min_momentum_5s": 0.03,
-    "min_volume_1m": 1000
+    "min_momentum_5s": 0.0,
+    "min_volume_1m": 100
   },
   "entry": {
     "bet_amount_usd": 0.50,

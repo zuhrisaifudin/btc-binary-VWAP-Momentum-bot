@@ -1125,8 +1125,9 @@ class Dashboard:
         time_ok = elapsed_sec >= min_elapsed
         dev_ok = fav_dev > min_dev and fav_dev < max_dev
         
-        min_mom = getattr(self.config.strategy, 'min_momentum_5s', 0.03)
-        mom_ok = fav_mom is not None and fav_mom > min_mom
+        # Momentum check disabled for Trap Play Strategy - enter based on price dominance only
+        min_mom = getattr(self.config.strategy, 'min_momentum_5s', 0.0)
+        mom_ok = fav_mom is not None and fav_mom > min_mom if min_mom > 0 else True
         
         time_cutoff_ok = time_left > no_entry_cutoff
         
@@ -1415,12 +1416,14 @@ class Dashboard:
             no_entry_cutoff = self.config.strategy.no_entry_before_end_sec
             elapsed_sec = self.config.market.duration_sec - time_left
             
-            min_mom = getattr(self.config.strategy, 'min_momentum_5s', 0.03)
+            # Momentum check disabled for Trap Play Strategy - enter based on price dominance only
+            min_mom = getattr(self.config.strategy, 'min_momentum_5s', 0.0)
+            mom_ok = fav_mom is not None and fav_mom > min_mom if min_mom > 0 else True
             
             price_ok = min_price <= fav_price <= max_price
             time_ok = elapsed_sec >= min_elapsed
             dev_ok = fav_dev > min_dev and fav_dev < max_dev
-            mom_ok = fav_mom is not None and fav_mom > min_mom
+            # mom_ok already set above based on Trap Play Strategy logic
             time_cutoff_ok = time_left > no_entry_cutoff
 
             if not time_cutoff_ok:
