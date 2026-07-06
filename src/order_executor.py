@@ -384,6 +384,8 @@ class OrderExecutor:
         order_logger.info(f"  Size: {size} contracts")
         order_logger.info(f"  Value: ${order_value:.2f}")
         order_logger.info(f"  Type: FAK (Fill-And-Kill)")
+        if order_value < 1.00:
+            order_logger.warning(f"  ⚠️ WARNING: Order value (${order_value:.2f}) is below Polymarket's $1.00 minimum for marketable (FAK/FOK) BUY orders. It will likely be rejected by the CLOB API.")
         
         start_time = time.time()
         

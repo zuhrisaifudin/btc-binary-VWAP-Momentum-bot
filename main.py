@@ -193,6 +193,9 @@ class TradeRecord:
     timestamp: float
     max_drawdown_abs: float = 0.0   # Max absolute price drop from entry
     max_drawdown_pct: float = 0.0   # Max percentage drawdown from entry
+    hedged: bool = False
+    hedge_contracts: int = 0
+    hedge_price: float = 0.0
 
 
 # =============================================================================
@@ -474,6 +477,9 @@ class TradingStats:
             timestamp=time.time(),
             max_drawdown_abs=dd_abs,
             max_drawdown_pct=dd_pct,
+            hedged=self.position.hedged,
+            hedge_contracts=self.position.hedge_contracts,
+            hedge_price=self.position.hedge_price
         )
         
         self.trades.append(record)
@@ -1238,7 +1244,12 @@ class Dashboard:
         last_trades_lines = []
         for trade in s.trades[-3:][::-1]:
             icon = "✅" if trade.won else "❌"
-            last_trades_lines.append(f"  {icon} {trade.token_name} @ {trade.entry_price:.2f} → ${trade.pnl:+.2f}")
+            trade_text = f"  {icon} {trade.token_name} @ {trade.entry_price:.2f}"
+            if getattr(trade, 'hedged', False):
+                trap_name = "DOWN" if trade.token_name == "UP" else "UP"
+                trade_text += f" | Trap {trap_name} @ {trade.hedge_price:.2f}"
+            trade_text += f" → ${trade.pnl:+.2f}"
+            last_trades_lines.append(trade_text)
         
         lines = [stats_line, pnl_line, "", pos_line]
         if ur_line:
