@@ -478,7 +478,9 @@ class OrderExecutor:
         total_budget_usd: float,
         main_allocation_pct: float = 0.85,
         trap_allocation_pct: float = 0.15,
-        max_trap_price: float = 0.25
+        max_trap_price: float = 0.25,
+        main_websocket_price: Optional[float] = None,
+        trap_websocket_price: Optional[float] = None
     ) -> Tuple[bool, OrderResult, OrderResult]:
         """
         Execute dual position strategy (Main + Trap/Proteksi).
@@ -494,6 +496,8 @@ class OrderExecutor:
             main_allocation_pct: Persentase untuk posisi utama (default 85%)
             trap_allocation_pct: Persentase untuk posisi trap (default 15%)
             max_trap_price: Harga maksimum untuk trap (jika lebih mahal, skip trap)
+            main_websocket_price: Current ASK price from WebSocket for main token
+            trap_websocket_price: Current ASK price from WebSocket for trap token
         
         Returns:
             Tuple of (success, main_result, trap_result)
@@ -506,8 +510,15 @@ class OrderExecutor:
         order_logger.info("=" * 60)
         
         # Dapatkan harga pasar saat ini untuk kedua token
-        main_price = await self.get_best_ask(main_token_id)
-        trap_price = await self.get_best_ask(trap_token_id)
+        # Prioritize WebSocket prices if provided (for simulation mode)
+        main_price = main_websocket_price
+        trap_price = trap_websocket_price
+        
+        # Fallback to CLOB API if WebSocket prices not provided
+        if main_price is None:
+            main_price = await self.get_best_ask(main_token_id)
+        if trap_price is None:
+            trap_price = await self.get_best_ask(trap_token_id)
         
         if not main_price or not trap_price:
             order_logger.error("DUAL POSITION: Could not get market prices for both tokens")
