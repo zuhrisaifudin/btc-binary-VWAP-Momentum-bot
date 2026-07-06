@@ -1414,11 +1414,13 @@ class Dashboard:
             max_dev = self.config.strategy.max_deviation_pct
             no_entry_cutoff = self.config.strategy.no_entry_before_end_sec
             elapsed_sec = self.config.market.duration_sec - time_left
-
+            
+            min_mom = getattr(self.config.strategy, 'min_momentum_5s', 0.03)
+            
             price_ok = min_price <= fav_price <= max_price
             time_ok = elapsed_sec >= min_elapsed
             dev_ok = fav_dev > min_dev and fav_dev < max_dev
-            mom_ok = fav_mom is not None and fav_mom > 5
+            mom_ok = fav_mom is not None and fav_mom > min_mom
             time_cutoff_ok = time_left > no_entry_cutoff
 
             if not time_cutoff_ok:
