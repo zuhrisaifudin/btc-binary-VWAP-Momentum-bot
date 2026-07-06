@@ -1,7 +1,7 @@
 # BTC 15-min Live Trading Bot - Dependencies
 
 # Polymarket SDK
-py-clob-client>=0.16.0
+py-clob-client-v2>=1.0.0
 
 # Web3 for blockchain interactions
 web3>=6.0.0

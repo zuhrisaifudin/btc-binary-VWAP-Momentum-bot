@@ -444,10 +444,11 @@ class TradingStats:
         # Calculate PnL with hedge consideration
         hedge_cost = 0
         hedge_payout = 0
-        if self.position.hedged and not won:
-            # Hedge wins when main position loses
-            hedge_payout = self.position.hedge_contracts * 1.00
+        if self.position.hedged:
             hedge_cost = self.position.hedge_contracts * self.position.hedge_price
+            if not won:
+                # Hedge wins when main position loses
+                hedge_payout = self.position.hedge_contracts * 1.00
         
         if won:
             pnl = (self.position.contracts - entry_cost) - hedge_cost
@@ -1193,22 +1194,36 @@ class Dashboard:
         
         if s.position:
             pos = s.position
-            if pos.token_name == "UP" and self.state.up_token:
-                current_price = self.state.up_token.best_bid or self.state.up_token.last_price
-            elif pos.token_name == "DOWN" and self.state.down_token:
-                current_price = self.state.down_token.best_bid or self.state.down_token.last_price
+            if pos.token_name == "UP":
+                current_price = self.state.up_token.best_bid or self.state.up_token.last_price if self.state.up_token else pos.entry_price
+                trap_current_price = self.state.down_token.best_bid or self.state.down_token.last_price if self.state.down_token else pos.hedge_price
+            elif pos.token_name == "DOWN":
+                current_price = self.state.down_token.best_bid or self.state.down_token.last_price if self.state.down_token else pos.entry_price
+                trap_current_price = self.state.up_token.best_bid or self.state.up_token.last_price if self.state.up_token else pos.hedge_price
             else:
                 current_price = pos.entry_price
+                trap_current_price = pos.hedge_price
             
             unrealized = (pos.contracts * current_price) - (pos.contracts * pos.entry_price)
             ur_color = "green" if unrealized >= 0 else "red"
             
-            hedge_str = " [cyan]🛡️ HEDGED[/cyan]" if pos.hedged else ""
+            trap_line = ""
+            if pos.hedged:
+                trap_name = "DOWN" if pos.token_name == "UP" else "UP"
+                trap_unrealized = (pos.hedge_contracts * trap_current_price) - (pos.hedge_contracts * pos.hedge_price)
+                trap_ur_color = "green" if trap_unrealized >= 0 else "red"
+                
+                is_trap = hasattr(self.config, 'dual_position') and self.config.dual_position.enabled
+                label = "🛡️ TRAP" if is_trap else "🛡️ HEDGE"
+                trap_line = f"   {label}: {trap_name} @ {pos.hedge_price:.3f} ({pos.hedge_contracts} contracts) | PnL: [{trap_ur_color}]${trap_unrealized:+.2f}[/{trap_ur_color}] (price: {trap_current_price:.3f})"
+            
             flash = "🔔 " if self.entry_flash else ""
             self.entry_flash = False
             
-            pos_line = f"{flash}🟢 LONG {pos.token_name} @ {pos.entry_price:.3f} ({pos.contracts} contracts){hedge_str}"
+            pos_line = f"{flash}🟢 LONG {pos.token_name} @ {pos.entry_price:.3f} ({pos.contracts} contracts)"
             ur_line = f"   Unrealized: [{ur_color}]${unrealized:+.2f}[/{ur_color}] (price: {current_price:.3f})"
+            if trap_line:
+                ur_line += f"\n{trap_line}"
             
             # Live drawdown
             dd_price = max(0, pos.entry_price - pos.min_price_seen)
@@ -1235,7 +1250,21 @@ class Dashboard:
         
         border = "bold yellow" if self.entry_flash or self.hedge_flash else "cyan"
         self.hedge_flash = False
-        return Panel("\n".join(lines), title=f"[bold]💰 REAL Trading (${bet:.0f}/trade)[/bold]", border_style=border)
+        
+        # Format title based on mode (Simulation vs Real) and strategy (Dual vs Single)
+        is_trap_strategy = hasattr(self.config, 'dual_position') and self.config.dual_position.enabled
+        if is_trap_strategy:
+            total_budget = self.config.dual_position.total_budget_usd
+            main_alloc = total_budget * self.config.dual_position.main_allocation_pct
+            trap_alloc = total_budget * self.config.dual_position.trap_allocation_pct
+            title_text = f"💰 REAL Trading (Main: ${main_alloc:.2f}, Trap: ${trap_alloc:.2f})"
+        else:
+            title_text = f"💰 REAL Trading (${bet:.2f}/trade)"
+            
+        if bool(getattr(self.config, "simulation", None) and self.config.simulation.enabled):
+            title_text = title_text.replace("REAL", "SIMULATION").replace("💰", "🎮")
+            
+        return Panel("\n".join(lines), title=f"[bold]{title_text}[/bold]", border_style=border)
     
     def create_btc_price_panel(self) -> Panel:
         """Panel showing Chainlink BTC/USD price and deviation from market start."""
@@ -2074,6 +2103,10 @@ class LiveTradingBot:
             # 2. TRAP POSITION
             if trap_res.success and trap_res.contracts_filled > 0:
                 self.dashboard.hedge_flash = True
+                self.stats.record_hedge(
+                    contracts=trap_res.contracts_filled,
+                    price=trap_res.avg_price
+                )
                 
                 hsim = "🎮 <b>[SIMULATION]</b>\n" if self.config.simulation.enabled else ""
                 trap_name = "DOWN" if token_name == "UP" else "UP"

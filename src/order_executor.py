@@ -23,9 +23,9 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional, Dict, Any, Tuple, List
 
-from py_clob_client.client import ClobClient
-from py_clob_client.clob_types import OrderArgs, ApiCreds, OrderType
-from py_clob_client.order_builder.constants import BUY
+from py_clob_client_v2.client import ClobClient
+from py_clob_client_v2.clob_types import OrderArgs, ApiCreds, OrderType
+from py_clob_client_v2.order_builder.constants import BUY
 
 logger = logging.getLogger("btc_live.executor")
 
@@ -545,7 +545,8 @@ class OrderExecutor:
                     price_offset=0.0,  # Gunakan harga pasar langsung
                     max_retries=3,
                     retry_delay_ms=300
-                )
+                ),
+                websocket_price=main_price
             )
             return single_result.success, single_result, OrderResult(success=True, error="Trap skipped (price too high)")
         

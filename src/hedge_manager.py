@@ -172,8 +172,8 @@ class HedgeManager:
         hedge_logger.info(f"  Max Retries: {self.config.max_retries}")
         hedge_logger.info("-" * 40)
         
-        from py_clob_client.clob_types import OrderArgs, OrderType
-        from py_clob_client.order_builder.constants import BUY
+        from py_clob_client_v2.clob_types import OrderArgs, OrderType
+        from py_clob_client_v2.order_builder.constants import BUY
         
         last_error = ""
         expiration = str(int(time.time()) + 3600)  # 1 hour, market resolves before this
