@@ -538,7 +538,7 @@ class OrderExecutor:
         if trap_price > max_trap_price:
             order_logger.warning(f"  Trap price ${trap_price:.4f} > max ${max_trap_price:.4f} - skipping trap position")
             # Fallback ke single position saja
-            single_result = await self.execute_entry_with_retry(
+            single_result = await self.execute_entry(
                 main_token_id,
                 ExecutionConfig(
                     bet_amount_usd=total_budget_usd,
