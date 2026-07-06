@@ -9,7 +9,7 @@
     "max_price": 0.85,
     "_comment_5m": "Below min_elapsed / no_entry_cutoff are scaled for 5m (300s). For 15m, raise e.g. min_elapsed_sec 530, no_entry_before_end_sec 335.",
     "min_elapsed_sec": 240,
-    "min_deviation_pct": 0.05,
+    "min_deviation_pct": 0.5,
     "max_deviation_pct": 100,
     "no_entry_before_end_sec": 90,
     "momentum_window_sec": 90,
