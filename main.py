@@ -178,6 +178,7 @@ class Position:
     hedge_contracts: int = 0
     hedge_price: float = 0.0
     min_price_seen: float = 0.0  # Lowest price after entry (for drawdown tracking)
+    awaiting_resolution: bool = False  # True if market ended but outcome not yet determined
 
 
 @dataclass
@@ -196,6 +197,14 @@ class TradeRecord:
     hedged: bool = False
     hedge_contracts: int = 0
     hedge_price: float = 0.0
+    # FASE 1: how the win/loss outcome was determined
+    # "chainlink_oracle"  - from BTC anchor/current price (same oracle Polymarket uses)
+    # "gamma_outcome"     - from Gamma API market.closed + outcomePrices (official resolution)
+    # "preliminary_last_price" - legacy: guessed from token last_price >= 0.70 (inaccurate, kept only for old logs)
+    resolution_source: str = "preliminary_last_price"
+    outcome: Optional[str] = None  # Which side won: "UP" or "DOWN"
+    btc_anchor_price: float = 0.0  # BTC/USD at market start (audit)
+    btc_current_price: float = 0.0  # BTC/USD at resolution (audit)
 
 
 # =============================================================================
@@ -437,13 +446,26 @@ class TradingStats:
             if current_price < self.position.min_price_seen:
                 self.position.min_price_seen = current_price
     
-    def close_position(self, final_price: float) -> Optional[TradeRecord]:
+    def close_position(
+        self,
+        won: bool,
+        resolution_source: str = "chainlink_oracle",
+        btc_anchor: float = 0.0,
+        btc_current: float = 0.0,
+    ) -> Optional[TradeRecord]:
+        """Close the current position using the resolved market outcome.
+
+        FASE 1: P&L is computed from the real binary outcome ($1 win / $0 loss),
+        NOT from the token's last_price. The win/loss must be determined from the
+        market oracle (Chainlink BTC price) or the official Gamma resolution.
+        """
         if not self.position:
             return None
-        
-        won = final_price >= 0.70  # Win threshold
+
+        # exit_price reflects the actual per-contract payout at resolution
+        final_price = 1.0 if won else 0.0
         entry_cost = self.position.contracts * self.position.entry_price
-        
+
         # Calculate PnL with hedge consideration
         hedge_cost = 0
         hedge_payout = 0
@@ -452,20 +474,25 @@ class TradingStats:
             if not won:
                 # Hedge wins when main position loses
                 hedge_payout = self.position.hedge_contracts * 1.00
-        
+
         if won:
             pnl = (self.position.contracts - entry_cost) - hedge_cost
         else:
             pnl = (-entry_cost - hedge_cost) + hedge_payout
-        
+
         # Update daily PnL
         self.daily_pnl += pnl
         self.daily_trades += 1
-        
+
         # Calculate max drawdown from entry
         dd_abs = max(0, self.position.entry_price - self.position.min_price_seen)
         dd_pct = (dd_abs / self.position.entry_price * 100) if self.position.entry_price > 0 else 0
-        
+
+        # Which side won, derived from our token + outcome
+        outcome_name = self.position.token_name if won else (
+            "DOWN" if self.position.token_name == "UP" else "UP"
+        )
+
         record = TradeRecord(
             market_slug=self.position.market_slug,
             token_name=self.position.token_name,
@@ -479,7 +506,11 @@ class TradingStats:
             max_drawdown_pct=dd_pct,
             hedged=self.position.hedged,
             hedge_contracts=self.position.hedge_contracts,
-            hedge_price=self.position.hedge_price
+            hedge_price=self.position.hedge_price,
+            resolution_source=resolution_source,
+            outcome=outcome_name,
+            btc_anchor_price=btc_anchor,
+            btc_current_price=btc_current,
         )
         
         self.trades.append(record)
