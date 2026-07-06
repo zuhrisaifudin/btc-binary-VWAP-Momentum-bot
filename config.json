@@ -25,8 +25,8 @@
     "max_retries": 3,
     "retry_delay_ms": 300,
     "fill_timeout_ms": 1000,
-    "min_contracts": 10,
-    "min_order_usd": 1,
+    "min_contracts": 1,
+    "min_order_usd": 0.01,
     "max_entry_price": 0.75,
     "ws_recovery_timeout_sec": 10,
     "max_daily_trades": 20
@@ -45,8 +45,8 @@
     "_comment": "Trap Play Strategy: Buy both sides - main follows signal, trap profits from reversal",
     "enabled": true,
     "total_budget_usd": 2.00,
-    "main_allocation_pct": 0.85,
-    "trap_allocation_pct": 0.15,
+    "main_allocation_pct": 0.90,
+    "trap_allocation_pct": 0.10,
     "max_trap_price": 0.25,
     "order_type": "FAK"
   },

@@ -34,8 +34,8 @@ order_logger = logging.getLogger("btc_live.orders")
 order_logger.setLevel(logging.DEBUG)
 
 # Polymarket minimums
-MIN_ORDER_USD = 1.0
-MIN_CONTRACTS = 5
+MIN_ORDER_USD = 0.01
+MIN_CONTRACTS = 1
 
 
 @dataclass
