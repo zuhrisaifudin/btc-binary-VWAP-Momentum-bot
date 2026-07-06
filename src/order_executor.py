@@ -241,6 +241,7 @@ class OrderExecutor:
             return None
         
         start_time = time.time()
+        book = None
         try:
             # Use CLOB API to get orderbook
             book = await asyncio.to_thread(
@@ -287,7 +288,7 @@ class OrderExecutor:
             
         except Exception as e:
             logger.error(f"Error getting best bid: {e}")
-            order_logger.error(f"ORDERBOOK ERROR: {e} | book_type={type(book).__name__}")
+            order_logger.error(f"ORDERBOOK ERROR: {e} | book_type={type(book).__name__ if book is not None else 'None'}")
             return None
     
     async def get_best_ask(self, token_id: str) -> Optional[float]:
@@ -305,6 +306,7 @@ class OrderExecutor:
             return None
         
         start_time = time.time()
+        book = None
         try:
             # Use CLOB API to get orderbook
             book = await asyncio.to_thread(
@@ -351,7 +353,7 @@ class OrderExecutor:
             
         except Exception as e:
             logger.error(f"Error getting best ask: {e}")
-            order_logger.error(f"ORDERBOOK ASK ERROR: {e} | book_type={type(book).__name__}")
+            order_logger.error(f"ORDERBOOK ASK ERROR: {e} | book_type={type(book).__name__ if book is not None else 'None'}")
             return None
     
     async def place_fak_order(

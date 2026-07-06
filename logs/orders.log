@@ -1,9 +1,28 @@
-2026-07-06 19:12:39 ============================================================
-2026-07-06 19:12:39 CLOB CLIENT INITIALIZATION
-2026-07-06 19:12:39   Host: https://clob.polymarket.com
-2026-07-06 19:12:39   Chain ID: 137
-2026-07-06 19:12:39   Signature Type: 1
-2026-07-06 19:12:39   Funder Address: 0x371fb28383e8fb62afe7e024b01ad451b55828e5
-2026-07-06 19:12:39   API Key: d4b86398...
-2026-07-06 19:12:39 CLOB CLIENT INITIALIZED SUCCESSFULLY
-2026-07-06 19:12:39 ============================================================
+2026-07-06 21:12:24 ============================================================
+2026-07-06 21:12:24 CLOB CLIENT INITIALIZATION
+2026-07-06 21:12:24   Host: https://clob.polymarket.com
+2026-07-06 21:12:24   Chain ID: 137
+2026-07-06 21:12:24   Signature Type: 1
+2026-07-06 21:12:24   Funder Address: 0x371fb28383e8fb62afe7e024b01ad451b55828e5
+2026-07-06 21:12:24   API Key: d4b86398...
+2026-07-06 21:12:24 CLOB CLIENT INITIALIZED SUCCESSFULLY
+2026-07-06 21:12:24 ============================================================
+2026-07-06 21:34:13 ============================================================
+2026-07-06 21:34:13 CLOB CLIENT INITIALIZATION
+2026-07-06 21:34:13   Host: https://clob.polymarket.com
+2026-07-06 21:34:13   Chain ID: 137
+2026-07-06 21:34:13   Signature Type: 1
+2026-07-06 21:34:13   Funder Address: 0x371fb28383e8fb62afe7e024b01ad451b55828e5
+2026-07-06 21:34:13   API Key: d4b86398...
+2026-07-06 21:34:13 CLOB CLIENT INITIALIZED SUCCESSFULLY
+2026-07-06 21:34:13 ============================================================
+2026-07-06 21:37:22 ORDERBOOK ASK: token=26472626392968191571... | best_ask=0.9900 | asks=50 | latency=343ms
+2026-07-06 21:37:35 ORDERBOOK ASK: token=26472626392968191571... | best_ask=0.9900 | asks=31 | latency=246ms
+2026-07-06 21:37:48 ORDERBOOK ASK: token=26472626392968191571... | best_ask=0.9900 | asks=39 | latency=293ms
+2026-07-06 21:38:00 ORDERBOOK ASK: token=26472626392968191571... | best_ask=0.9900 | asks=39 | latency=264ms
+2026-07-06 21:38:13 ORDERBOOK ASK: token=26472626392968191571... | best_ask=0.9900 | asks=47 | latency=264ms
+2026-07-06 21:38:25 ORDERBOOK ASK: token=26472626392968191571... | best_ask=0.9900 | asks=43 | latency=250ms
+2026-07-06 21:38:37 ORDERBOOK ASK: token=26472626392968191571... | best_ask=0.9900 | asks=44 | latency=284ms
+2026-07-06 21:38:50 ORDERBOOK ASK: token=26472626392968191571... | best_ask=0.9900 | asks=79 | latency=268ms
+2026-07-06 21:39:02 ORDERBOOK ASK: token=26472626392968191571... | best_ask=0.9900 | asks=66 | latency=270ms
+2026-07-06 21:39:14 ORDERBOOK ASK: token=26472626392968191571... | best_ask=0.9900 | asks=66 | latency=314ms
