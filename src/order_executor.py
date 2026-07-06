@@ -559,11 +559,28 @@ class OrderExecutor:
         # Hitung jumlah kontrak untuk masing-masing
         main_contracts = self._calculate_contracts(main_budget, main_price)
         trap_contracts = self._calculate_contracts(trap_budget, trap_price)
-        
+
         # Validasi ukuran order
-        main_contracts, _ = self._validate_order_size(main_contracts, main_price)
-        trap_contracts, _ = self._validate_order_size(trap_contracts, trap_price)
-        
+        main_contracts, main_valid = self._validate_order_size(main_contracts, main_price)
+        trap_contracts, trap_valid = self._validate_order_size(trap_contracts, trap_price)
+
+        # Check if trap order meets minimum requirements
+        if not trap_valid or trap_contracts * trap_price < MIN_ORDER_USD:
+            order_logger.warning(f"  TRAP ORDER TOO SMALL: ${trap_budget:.2f} < ${MIN_ORDER_USD:.2f} minimum")
+            order_logger.warning(f"    Trap would require ${MIN_ORDER_USD:.2f} but only has ${trap_budget:.2f}")
+            # Fallback to single position (main only)
+            single_result = await self.execute_entry(
+                main_token_id,
+                ExecutionConfig(
+                    bet_amount_usd=total_budget_usd,  # Use total budget for main
+                    price_offset=0.0,
+                    max_retries=3,
+                    retry_delay_ms=300
+                ),
+                websocket_price=main_price
+            )
+            return single_result.success, single_result, OrderResult(success=False, error="Trap too small (<$0.01)")
+
         order_logger.info(f"  Order Calculation:")
         order_logger.info(f"    Main: ${main_budget:.2f} / ${main_price:.4f} = {main_contracts} contracts")
         order_logger.info(f"    Trap: ${trap_budget:.2f} / ${trap_price:.4f} = {trap_contracts} contracts")
