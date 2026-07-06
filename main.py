@@ -303,7 +303,7 @@ class WinRateTable:
                 if float(low) <= price <= float(high):
                     price_range = pr
                     break
-            except:
+            except Exception:
                 continue
         if not price_range and price > 0.99 and self.price_ranges:
             price_range = self.price_ranges[-1]
@@ -333,20 +333,38 @@ class TradingStats:
         self.daily_pnl: float = 0.0
         self.last_trade_date: str = ""
         self.max_daily_trades: int = 20  # Will be set from config
-        self.daily_stop_loss: float = -50.0  # Stop trading if daily loss exceeds this
-        
+        self.daily_stop_loss: float = -5.0  # Default overridden from config in initialize()
+
+        # FASE 1: positions whose market ended but outcome could not be determined
+        # from Chainlink (e.g. RTDS disconnected). Resolved later by the Gamma
+        # resolution poller reading market.closed + outcomePrices.
+        self.pending_resolutions: List[dict] = []
+
         self._load()
         self._check_new_day()
-    
+
     def _load(self):
         try:
             if self.log_file.exists():
                 with open(self.log_file, 'r') as f:
                     data = json.load(f)
-                    self.trades = [TradeRecord(**t) for t in data.get('trades', [])]
+                    self.trades = [self._load_trade(t) for t in data.get('trades', [])]
                     self.markets_seen = data.get('markets_seen', 0)
+                    # Restore unresolved pending positions across restarts
+                    self.pending_resolutions = data.get('pending_resolutions', []) or []
         except Exception:
             pass
+
+    @staticmethod
+    def _load_trade(raw: dict) -> 'TradeRecord':
+        """Build a TradeRecord from a persisted dict, tolerating old logs that
+        predate the FASE 1 fields (resolution_source / outcome / btc_*)."""
+        valid = {f for f in TradeRecord.__dataclass_fields__}
+        filtered = {k: v for k, v in raw.items() if k in valid}
+        # Old logs have no resolution_source → mark as the inaccurate legacy method
+        if 'resolution_source' not in filtered:
+            filtered['resolution_source'] = 'preliminary_last_price'
+        return TradeRecord(**filtered)
     
     def summary_dict(self) -> Dict[str, Any]:
         """Aggregates for dashboards and simulation summary files."""
@@ -446,9 +464,66 @@ class TradingStats:
             if current_price < self.position.min_price_seen:
                 self.position.min_price_seen = current_price
     
+    @staticmethod
+    def _build_trade_record(
+        pos: Position,
+        won: bool,
+        resolution_source: str,
+        btc_anchor: float,
+        btc_current: float,
+    ) -> Tuple[TradeRecord, float]:
+        """Compute a TradeRecord + PnL from a position and a resolved outcome.
+
+        Pure function (no state mutation) so it can be used for both the live
+        current position and deferred (pending) resolutions without touching
+        self.position.
+        """
+        entry_cost = pos.contracts * pos.entry_price
+
+        # PnL with hedge consideration (hedge wins when main loses)
+        hedge_cost = 0.0
+        hedge_payout = 0.0
+        if pos.hedged:
+            hedge_cost = pos.hedge_contracts * pos.hedge_price
+            if not won:
+                hedge_payout = pos.hedge_contracts * 1.00
+
+        if won:
+            pnl = (pos.contracts - entry_cost) - hedge_cost
+        else:
+            pnl = (-entry_cost - hedge_cost) + hedge_payout
+
+        final_price = 1.0 if won else 0.0  # actual per-contract payout
+        dd_abs = max(0.0, pos.entry_price - pos.min_price_seen)
+        dd_pct = (dd_abs / pos.entry_price * 100) if pos.entry_price > 0 else 0.0
+        outcome_name = pos.token_name if won else (
+            "DOWN" if pos.token_name == "UP" else "UP"
+        )
+
+        record = TradeRecord(
+            market_slug=pos.market_slug,
+            token_name=pos.token_name,
+            entry_price=pos.entry_price,
+            exit_price=final_price,
+            contracts=pos.contracts,
+            pnl=pnl,
+            won=won,
+            timestamp=time.time(),
+            max_drawdown_abs=dd_abs,
+            max_drawdown_pct=dd_pct,
+            hedged=pos.hedged,
+            hedge_contracts=pos.hedge_contracts,
+            hedge_price=pos.hedge_price,
+            resolution_source=resolution_source,
+            outcome=outcome_name,
+            btc_anchor_price=btc_anchor,
+            btc_current_price=btc_current,
+        )
+        return record, pnl
+
     def close_position(
         self,
-        won: bool,
+        won_or_final_price,
         resolution_source: str = "chainlink_oracle",
         btc_anchor: float = 0.0,
         btc_current: float = 0.0,
@@ -458,67 +533,120 @@ class TradingStats:
         FASE 1: P&L is computed from the real binary outcome ($1 win / $0 loss),
         NOT from the token's last_price. The win/loss must be determined from the
         market oracle (Chainlink BTC price) or the official Gamma resolution.
+
+        Backward compatibility: accepts either won: bool (new) or final_price: float (old).
         """
         if not self.position:
             return None
 
-        # exit_price reflects the actual per-contract payout at resolution
-        final_price = 1.0 if won else 0.0
-        entry_cost = self.position.contracts * self.position.entry_price
-
-        # Calculate PnL with hedge consideration
-        hedge_cost = 0
-        hedge_payout = 0
-        if self.position.hedged:
-            hedge_cost = self.position.hedge_contracts * self.position.hedge_price
-            if not won:
-                # Hedge wins when main position loses
-                hedge_payout = self.position.hedge_contracts * 1.00
-
-        if won:
-            pnl = (self.position.contracts - entry_cost) - hedge_cost
+        # Handle backward compatibility - check if first param is won (bool) or final_price (float)
+        if isinstance(won_or_final_price, bool):
+            won = won_or_final_price
+            final_price = 1.0 if won else 0.0
         else:
-            pnl = (-entry_cost - hedge_cost) + hedge_payout
+            # Legacy mode - determine winner from final price
+            final_price = won_or_final_price
+            won = final_price >= 0.70  # Old logic
+            resolution_source = "preliminary_last_price"  # Mark as legacy
 
-        # Update daily PnL
+        record, pnl = self._build_trade_record(
+            self.position, won, resolution_source, btc_anchor, btc_current
+        )
+
         self.daily_pnl += pnl
         self.daily_trades += 1
-
-        # Calculate max drawdown from entry
-        dd_abs = max(0, self.position.entry_price - self.position.min_price_seen)
-        dd_pct = (dd_abs / self.position.entry_price * 100) if self.position.entry_price > 0 else 0
-
-        # Which side won, derived from our token + outcome
-        outcome_name = self.position.token_name if won else (
-            "DOWN" if self.position.token_name == "UP" else "UP"
-        )
-
-        record = TradeRecord(
-            market_slug=self.position.market_slug,
-            token_name=self.position.token_name,
-            entry_price=self.position.entry_price,
-            exit_price=final_price,
-            contracts=self.position.contracts,
-            pnl=pnl,
-            won=won,
-            timestamp=time.time(),
-            max_drawdown_abs=dd_abs,
-            max_drawdown_pct=dd_pct,
-            hedged=self.position.hedged,
-            hedge_contracts=self.position.hedge_contracts,
-            hedge_price=self.position.hedge_price,
-            resolution_source=resolution_source,
-            outcome=outcome_name,
-            btc_anchor_price=btc_anchor,
-            btc_current_price=btc_current,
-        )
-        
         self.trades.append(record)
         self.position = None
         self.position_closed_this_market = True
         self._save()
-        
-        logger.info(f"Trade closed: PnL=${pnl:+.4f} | Daily: ${self.daily_pnl:.2f} ({self.daily_trades} trades)")
+
+        logger.info(
+            f"Trade closed: PnL=${pnl:+.4f} | won={won} | src={resolution_source} | "
+            f"Daily: ${self.daily_pnl:.2f} ({self.daily_trades} trades)"
+        )
+        return record
+
+    def add_pending_resolution(
+        self, condition_id: str = "", end_time: float = 0.0
+    ) -> None:
+        """Snapshot the current position for deferred Gamma resolution.
+
+        Called when a market ends but the Chainlink oracle price is unavailable,
+        so the outcome cannot be determined immediately. The Gamma resolution
+        poller later reads market.closed + outcomePrices and calls resolve_pending.
+        """
+        if not self.position:
+            return
+        p = self.position
+        self.pending_resolutions.append({
+            "position": {
+                "token_name": p.token_name,
+                "token_id": p.token_id,
+                "opposite_token_id": p.opposite_token_id,
+                "entry_price": p.entry_price,
+                "contracts": p.contracts,
+                "entry_time": p.entry_time,
+                "market_slug": p.market_slug,
+                "hedged": p.hedged,
+                "hedge_contracts": p.hedge_contracts,
+                "hedge_price": p.hedge_price,
+                "min_price_seen": p.min_price_seen,
+            },
+            "condition_id": condition_id,
+            "end_time": end_time,
+            "market_slug": p.market_slug,
+            "token_name": p.token_name,
+        })
+        # Free the slot so a new market can trade; resolution happens via poller.
+        self.position = None
+        self.position_closed_this_market = True
+        logger.warning(
+            f"Position deferred to Gamma poller: {p.token_name} @ {p.entry_price:.4f} "
+            f"({p.market_slug}) — {len(self.pending_resolutions)} pending"
+        )
+        self._save()
+
+    def resolve_pending(
+        self,
+        index: int,
+        won: bool,
+        resolution_source: str = "gamma_outcome",
+        btc_anchor: float = 0.0,
+        btc_current: float = 0.0,
+    ) -> Optional[TradeRecord]:
+        """Resolve a previously-deferred position using the official Gamma outcome.
+
+        Does NOT touch self.position (a new live position may already be open),
+        so this is safe to call from the background poller at any time.
+        """
+        if index < 0 or index >= len(self.pending_resolutions):
+            return None
+        item = self.pending_resolutions.pop(index)
+        pdata = item["position"]
+        pos = Position(
+            token_name=pdata["token_name"],
+            token_id=pdata["token_id"],
+            opposite_token_id=pdata["opposite_token_id"],
+            entry_price=pdata["entry_price"],
+            contracts=pdata["contracts"],
+            entry_time=pdata["entry_time"],
+            market_slug=pdata["market_slug"],
+            hedged=pdata.get("hedged", False),
+            hedge_contracts=pdata.get("hedge_contracts", 0),
+            hedge_price=pdata.get("hedge_price", 0.0),
+            min_price_seen=pdata.get("min_price_seen", pdata["entry_price"]),
+        )
+        record, pnl = self._build_trade_record(
+            pos, won, resolution_source, btc_anchor, btc_current
+        )
+        self.daily_pnl += pnl
+        self.daily_trades += 1
+        self.trades.append(record)
+        self._save()
+        logger.info(
+            f"Pending resolved: {pos.token_name} @ {pos.entry_price:.4f} | "
+            f"PnL=${pnl:+.4f} | won={won} | src={resolution_source}"
+        )
         return record
     
     @property
@@ -813,7 +941,7 @@ class ChainlinkPriceClient:
                     self._ping_task.cancel()
                     try:
                         await self._ping_task
-                    except:
+                    except Exception:
                         pass
                     self._ping_task = None
     
@@ -943,7 +1071,7 @@ class ChainlinkPriceClient:
             self._ping_task.cancel()
             try:
                 await self._ping_task
-            except:
+            except Exception:
                 pass
             self._ping_task = None
         
@@ -1184,7 +1312,7 @@ class Dashboard:
             if not mom_ok:
                 signal = "🟡 ALMOST (need Mom>0%)"
             elif fav_dev >= max_dev:
-                signal = f"🟡 ALMOST (Dev≥{max_dev}%)"
+                signal = f"🟡 ALMOST (Dev>={max_dev}%)"
             else:
                 signal = "🟡 ALMOST (need dev)"
             self.last_signal = ""
@@ -1196,7 +1324,7 @@ class Dashboard:
                 signal = f"⏳ WAIT (P not in range)"
             elif not dev_ok:
                 if fav_dev >= max_dev:
-                    signal = f"⏳ WAIT (Dev≥{max_dev}%)"
+                    signal = f"⏳ WAIT (Dev>={max_dev}%)"
                 else:
                     signal = f"⏳ WAIT (Dev<{min_dev}%)"
             elif not mom_ok:
@@ -1209,13 +1337,13 @@ class Dashboard:
             f"Price:       {self._fmt_price(fav_price)} (range: {min_price}-{max_price})",
             f"Deviation:   {self._fmt_dev(fav_dev)} (need {min_dev}%–{max_dev}%)",
             f"Momentum:    {self._fmt_momentum(fav_mom)}",
-            f"Elapsed:     {int(elapsed_sec)}s (need ≥{min_elapsed}s)  [bin {time_bin}]",
+            f"Elapsed:     {int(elapsed_sec)}s (need >={min_elapsed}s)  [bin {time_bin}]",
             "",
             f"Up:          {self._fmt_price(up.last_price)} | Dev: {self._fmt_dev(up_dev)} | Mom: {self._fmt_momentum(up_mom)}",
             f"Down:        {self._fmt_price(down.last_price)} | Dev: {self._fmt_dev(down_dev)} | Mom: {self._fmt_momentum(down_mom)}",
         ]
         
-        title = f"[bold]Strategy: P {min_price}-{max_price}, T≥{min_elapsed}s, Dev {min_dev}%-{max_dev}%[/bold]"
+        title = f"[bold]Strategy: P {min_price}-{max_price}, T>={min_elapsed}s, Dev {min_dev}%-{max_dev}%[/bold]"
         border = "green" if signal_color == "bold green" else "magenta"
         return Panel("\n".join(lines), title=title, border_style=border)
     
@@ -1227,7 +1355,7 @@ class Dashboard:
         stats_line = f"📊 Markets: {s.markets_seen} | Trades: {s.trade_count} | WR: {wr_str}"
         
         pnl_color = "green" if s.total_pnl >= 0 else "red"
-        pnl_line = f"💰 PnL: [{pnl_color}]${s.total_pnl:+.2f}[/{pnl_color}]"
+        pnl_line = f"MONEY PnL: [{pnl_color}]${s.total_pnl:+.2f}[/{pnl_color}]"
         
         if s.position:
             pos = s.position
@@ -1251,7 +1379,7 @@ class Dashboard:
                 trap_ur_color = "green" if trap_unrealized >= 0 else "red"
                 
                 is_trap = hasattr(self.config, 'dual_position') and self.config.dual_position.enabled
-                label = "🛡️ TRAP" if is_trap else "🛡️ HEDGE"
+                label = "SHIELD TRAP" if is_trap else "SHIELD HEDGE"
                 trap_line = f"   {label}: {trap_name} @ {pos.hedge_price:.3f} ({pos.hedge_contracts} contracts) | PnL: [{trap_ur_color}]${trap_unrealized:+.2f}[/{trap_ur_color}] (price: {trap_current_price:.3f})"
             
             flash = "🔔 " if self.entry_flash else ""
@@ -1299,12 +1427,12 @@ class Dashboard:
             total_budget = self.config.dual_position.total_budget_usd
             main_alloc = total_budget * self.config.dual_position.main_allocation_pct
             trap_alloc = total_budget * self.config.dual_position.trap_allocation_pct
-            title_text = f"💰 REAL Trading (Main: ${main_alloc:.2f}, Trap: ${trap_alloc:.2f})"
+            title_text = f"MONEY REAL Trading (Main: ${main_alloc:.2f}, Trap: ${trap_alloc:.2f})"
         else:
-            title_text = f"💰 REAL Trading (${bet:.2f}/trade)"
+            title_text = f"MONEY REAL Trading (${bet:.2f}/trade)"
             
         if bool(getattr(self.config, "simulation", None) and self.config.simulation.enabled):
-            title_text = title_text.replace("REAL", "SIMULATION").replace("💰", "🎮")
+            title_text = title_text.replace("REAL", "SIMULATION").replace("MONEY", "GAME")
             
         return Panel("\n".join(lines), title=f"[bold]{title_text}[/bold]", border_style=border)
     
@@ -1505,7 +1633,7 @@ class Dashboard:
                 if not mom_ok:
                     signal = "🟡 ALMOST (need Mom>0%)"
                 elif fav_dev >= max_dev:
-                    signal = f"🟡 ALMOST (Dev≥{max_dev}%)"
+                    signal = f"🟡 ALMOST (Dev>={max_dev}%)"
                 else:
                     signal = "🟡 ALMOST (need dev)"
             elif not time_ok:
@@ -1514,7 +1642,7 @@ class Dashboard:
                 signal = "⏳ WAIT (P not in range)"
             elif not dev_ok:
                 signal = (
-                    f"⏳ WAIT (Dev≥{max_dev}%)"
+                    f"⏳ WAIT (Dev>={max_dev}%)"
                     if fav_dev >= max_dev
                     else f"⏳ WAIT (Dev<{min_dev}%)"
                 )
@@ -1648,17 +1776,17 @@ class LiveTradingBot:
             return False
 
         im = self.config.market.interval_minutes
-        console.print(f"[bold cyan]🚀 BTC {im}-Min Live Trading Bot[/bold cyan]")
+        console.print(f"[bold cyan]BTC {im}-Min Live Trading Bot[/bold cyan]")
         if self.config.simulation.enabled:
             console.print("[bold yellow]   SIMULATION MODE — no CLOB orders, no redeemer[/bold yellow]\n")
         else:
             console.print("[bold cyan]   Real Trading + Dashboard[/bold cyan]\n")
 
-        console.print(f"[green]✓ Market: BTC up/down {im}m (slug btc-updown-{im}m-*)[/green]")
-        console.print(f"[green]✓ Config: P {self.config.strategy.min_price}-{self.config.strategy.max_price}, "
-                      f"T≥{self.config.strategy.min_elapsed_sec}s, "
+        console.print(f"[green]OK Market: BTC up/down {im}m (slug btc-updown-{im}m-*)[/green]")
+        console.print(f"[green]OK Config: P {self.config.strategy.min_price}-{self.config.strategy.max_price}, "
+                      f"T>={self.config.strategy.min_elapsed_sec}s, "
                       f"Dev {self.config.strategy.min_deviation_pct}%-{self.config.strategy.max_deviation_pct}%[/green]")
-        console.print(f"[green]✓ Bet: ${self.config.entry.bet_amount_usd}, "
+        console.print(f"[green]OK Bet: ${self.config.entry.bet_amount_usd}, "
                       f"Daily Limit: {self.config.entry.max_daily_trades} trades, "
                       f"Hedge: {'ON' if self.config.hedge.enabled else 'OFF'}[/green]")
         if self.config.simulation.enabled:
@@ -1666,14 +1794,16 @@ class LiveTradingBot:
                 self.stats = TradingStats(self.config.simulation.trading_log_path)
                 # Set daily trade limit from config
                 self.stats.max_daily_trades = self.config.entry.max_daily_trades
+                self.stats.daily_stop_loss = self.config.entry.daily_stop_loss_usd
                 console.print(
-                    f"[yellow]✓ Simulation stats: {self.config.simulation.trading_log_path}[/yellow]"
+                    f"[yellow]OK Simulation stats: {self.config.simulation.trading_log_path}[/yellow]"
                 )
             else:
-                console.print("[yellow]✓ Simulation stats: same file as live (trading_log.json)[/yellow]")
+                console.print("[yellow]OK Simulation stats: same file as live (trading_log.json)[/yellow]")
         else:
-            # Set daily trade limit from config for live trading too
+            # Set daily trade limit and stop loss from config for live trading
             self.stats.max_daily_trades = self.config.entry.max_daily_trades
+            self.stats.daily_stop_loss = self.config.entry.daily_stop_loss_usd
 
         # Initialize trading components
         console.print("[yellow]Initializing trading components...[/yellow]")
@@ -1707,7 +1837,7 @@ class LiveTradingBot:
                 user_ws=None,
                 simulation_mode=True,
             )
-            console.print("[green]✓ Order executor: simulation (no CLOB)[/green]")
+            console.print("[green]OK Order executor: simulation (no CLOB)[/green]")
         else:
             # User WebSocket for order tracking (CRITICAL for fill confirmation!)
             self.user_ws = UserWebSocket(
@@ -1759,7 +1889,7 @@ class LiveTradingBot:
         # Auto redeemer (live only)
         if sim:
             self.redeemer = None
-            console.print("[yellow]✓ Auto-redeemer: disabled in simulation[/yellow]")
+            console.print("[yellow]OK Auto-redeemer: disabled in simulation[/yellow]")
         else:
             self.redeemer = AsyncAutoRedeemer(
                 private_key=self.config.polymarket.private_key,
@@ -1786,7 +1916,7 @@ class LiveTradingBot:
             sum_p = self.config.simulation.history_summary_path or "(disabled)"
             jl_p = jl or "(disabled)"
             console.print(
-                f"[green]✓ Simulation analytics: CSV={csv_p} | JSONL={jl_p} | summary={sum_p}[/green]"
+                f"[green]OK Simulation analytics: CSV={csv_p} | JSONL={jl_p} | summary={sum_p}[/green]"
             )
         else:
             self._sim_history = None
@@ -1796,7 +1926,7 @@ class LiveTradingBot:
             self.state, self.config.market.duration_sec
         )
         self._chainlink_task = asyncio.create_task(self.chainlink_client.connect())
-        console.print("[green]✓ Chainlink BTC/USD price feed starting...[/green]")
+        console.print("[green]OK Chainlink BTC/USD price feed starting...[/green]")
         
         # Dashboard
         self.dashboard = Dashboard(self.state, self.stats, self.config)
@@ -1813,7 +1943,7 @@ class LiveTradingBot:
             else:
                 open_url = f"http://{wd.host}:{wd.port}/"
             if ok:
-                console.print(f"[green]✓ Web dashboard:[/green] [bold]{open_url}[/bold]")
+                console.print(f"[green]OK Web dashboard:[/green] [bold]{open_url}[/bold]")
                 console.print(
                     "[dim]  Use http:// not https://. On Windows, if the page fails in your browser, "
                     "open this exact URL (avoid typing only “localhost”, which may use IPv6).[/dim]"
@@ -1824,7 +1954,7 @@ class LiveTradingBot:
                     f"(in use by another app, or bind failed). Check logs.[/yellow]"
                 )
         
-        console.print("[green]✓ All components initialized[/green]\n")
+        console.print("[green]OK All components initialized[/green]\n")
         return True
     
     async def find_market(self) -> bool:
@@ -1910,7 +2040,7 @@ class LiveTradingBot:
         try:
             end_time = datetime.fromisoformat(end_str.replace("Z", "+00:00"))
             end_timestamp = end_time.timestamp()
-        except:
+        except Exception:
             end_timestamp = time.time() + self.config.market.duration_sec
         
         slug = market.get("slug", "")
@@ -2150,14 +2280,14 @@ class LiveTradingBot:
                     price=trap_res.avg_price
                 )
                 
-                hsim = "🎮 <b>[SIMULATION]</b>\n" if self.config.simulation.enabled else ""
+                hsim = "GAME <b>[SIMULATION]</b>\n" if self.config.simulation.enabled else ""
                 trap_name = "DOWN" if token_name == "UP" else "UP"
                 await self.telegram.send_message(
                     f"{hsim}"
                     f"🪤 <b>TRAP Order Placed (Dual Position)</b>\n"
                     f"📊 Token: {trap_name}\n"
-                    f"📦 {trap_res.contracts_filled} contracts @ ${trap_res.avg_price:.3f}\n"
-                    f"💰 Cost: ${trap_res.total_cost:.2f}\n"
+                    f"BOX {trap_res.contracts_filled} contracts @ ${trap_res.avg_price:.3f}\n"
+                    f"MONEY Cost: ${trap_res.total_cost:.2f}\n"
                     f"🔖 Order ID: {trap_res.order_id[:20]}...\n"
                     f"📋 Status: FILLED (active trap)\n"
                 )
@@ -2225,11 +2355,11 @@ class LiveTradingBot:
                     hedge_result = await self.hedge_mgr.place_instant_hedge()
                     if hedge_result.success:
                         self.dashboard.hedge_flash = True
-                        hsim = "🎮 <b>[SIMULATION]</b>\n" if self.config.simulation.enabled else ""
+                        hsim = "GAME <b>[SIMULATION]</b>\n" if self.config.simulation.enabled else ""
                         await self.telegram.send_message(
-                            f"{hsim}🛡️ <b>Hedge Order Placed (INSTANT)</b>\n"
-                            f"📦 {hedge_result.contracts} contracts @ ${hedge_result.price:.3f}\n"
-                            f"💰 Cost: ${hedge_result.contracts * hedge_result.price:.2f}\n"
+                            f"{hsim}SHIELD <b>Hedge Order Placed (INSTANT)</b>\n"
+                            f"BOX {hedge_result.contracts} contracts @ ${hedge_result.price:.3f}\n"
+                            f"MONEY Cost: ${hedge_result.contracts * hedge_result.price:.2f}\n"
                             f"📋 Status: FILLED\n"
                         )
             else:
@@ -2237,105 +2367,108 @@ class LiveTradingBot:
                 if result.was_timeout:
                     self.stats.block_entry("Network timeout - no fill detected.")
     
-    def _register_hedge_ws_handler(self):
-        """Register WebSocket handler to track hedge order fills."""
-        if not self.user_ws:
-            logger.warning("User WebSocket not available for hedge tracking")
-            return
-        
-        hedge_order_id = self.hedge_mgr.hedge_order_id
-        if not hedge_order_id:
-            return
-        
-        original_on_trade = self.user_ws._on_trade
-        
-        async def _hedge_trade_handler(data: dict):
-            """Handle trade events and check for hedge fills."""
-            # Call original handler first
-            if original_on_trade:
-                await original_on_trade(data)
-            
-            # Check if this trade is for our hedge order
-            # GTD orders are maker orders, so check maker_order_id
-            trade_order_id = data.get("maker_order_id", "") or data.get("taker_order_id", "")
-            status = data.get("status", "")
-            
-            if trade_order_id == hedge_order_id and status == "MATCHED":
-                size = int(float(data.get("size", 0)))
-                price = float(data.get("price", 0))
-                
-                self.hedge_mgr.on_hedge_fill(size, price)
-                
-                pos = self._position if hasattr(self, '_position') else None
-                filled = self.hedge_mgr._position.hedge_contracts_filled if self.hedge_mgr._position else 0
-                total = self.hedge_mgr._position.contracts if self.hedge_mgr._position else 0
-                
-                if self.hedge_mgr.is_hedged:
-                    # Fully filled
-                    self.stats.record_hedge(filled, price)
-                    self.dashboard.hedge_flash = True
-                    
-                    await self.telegram.send_message(
-                        f"✅ <b>Hedge FULLY Filled!</b>\n"
-                        f"📦 {filled} contracts @ ${price}\n"
-                        f"🛡️ Position fully protected"
-                    )
-                    logger.info(f"Hedge fully filled: {filled} contracts")
-                else:
-                    # Partial fill
-                    await self.telegram.send_message(
-                        f"🛡️ <b>Hedge Partial Fill</b>\n"
-                        f"📦 +{size} contracts @ ${price}\n"
-                        f"📊 Progress: {filled}/{total}"
-                    )
-                    logger.info(f"Hedge partial fill: +{size}, total {filled}/{total}")
-        
-        self.user_ws._on_trade = _hedge_trade_handler
-        logger.info(f"Registered hedge fill handler for order {hedge_order_id[:20]}...")
     
     async def check_market_end(self):
-        """Close position at market end."""
+        """Check if market has ended and start resolution tracking if needed."""
         pos = self.stats.position
         if not pos:
             return
-        
-        time_left = self.state.end_time - time.time()
-        if time_left <= 10:  # 10 seconds before end
-            hedged_was = pos.hedged
-            if pos.token_name == "UP" and self.state.up_token:
-                final_price = self.state.up_token.last_price
-            elif pos.token_name == "DOWN" and self.state.down_token:
-                final_price = self.state.down_token.last_price
-            else:
-                final_price = 0.5
-            
-            # Log market end details
-            signal_logger.info("=" * 60)
-            signal_logger.info("MARKET END - POSITION CLOSING")
-            signal_logger.info(f"  Time: {datetime.now().isoformat()}")
-            signal_logger.info(f"  Market: {self.state.slug}")
-            signal_logger.info(f"  Position: {pos.token_name}")
-            signal_logger.info(f"  Entry Price: {pos.entry_price:.4f}")
-            signal_logger.info(f"  Final Price: {final_price:.4f}")
-            signal_logger.info(f"  Contracts: {pos.contracts}")
-            signal_logger.info(f"  Hedged: {pos.hedged}")
-            
-            record = self.stats.close_position(final_price)
-            if record:
-                self._simulation_log_close(record, hedged_was)
-                status = "✅ WIN" if record.won else "❌ LOSS"
-                
-                signal_logger.info(f"  Result: {'WIN' if record.won else 'LOSS'}")
-                signal_logger.info(f"  P&L: ${record.pnl:+.2f}")
-                signal_logger.info(f"  Max Drawdown: -{record.max_drawdown_abs:.4f} (-{record.max_drawdown_pct:.2f}%)")
-                dd_usd = record.max_drawdown_abs * record.contracts
-                signal_logger.info(f"  Max DD ($): -${dd_usd:.2f} (min price: {record.entry_price - record.max_drawdown_abs:.4f})")
-                signal_logger.info(f"  Total Trades: {len(self.stats.trades)}")
-                signal_logger.info(f"  Session Stats: W={sum(1 for r in self.stats.trades if r.won)} / L={sum(1 for r in self.stats.trades if not r.won)}")
-                signal_logger.info(f"  Total P&L: ${sum(r.pnl for r in self.stats.trades):+.2f}")
-                signal_logger.info("=" * 60)
-                
-                logger.info(f"Position closed: {status}, PnL: ${record.pnl:+.2f}")
+
+        # Market ended?
+        if time.time() > self.state.end_time:
+            # Check if already marked as awaiting resolution
+            if not pos.awaiting_resolution:
+                pos.awaiting_resolution = True
+                logger.info(f"Market ended for {self.state.slug}, starting resolution tracking...")
+
+                # Start resolution polling
+                asyncio.create_task(self.resolve_position())
+
+    async def resolve_position(self):
+        """Poll for market resolution and close position with official outcome."""
+        pos = self.stats.position
+        if not pos or not pos.awaiting_resolution:
+            return
+
+        logger.info(f"Starting resolution polling for {self.state.slug}")
+
+        max_polling_time = 300  # 5 minutes max polling
+        start_time = time.time()
+        poll_interval = 5  # 5 seconds between polls
+
+        async with aiohttp.ClientSession() as session:
+            while time.time() - start_time < max_polling_time:
+                try:
+                    # Check if market is closed via Gamma API
+                    async with session.get(f"https://gamma-api.polymarket.com/markets/{pos.market_slug}") as response:
+                        if response.status == 200:
+                            market_data = await response.json()
+
+                            if market_data.get('closed', False):
+                                # Market closed - get official outcome
+                                outcome_prices = market_data.get('outcomePrices', [0.5, 0.5])
+
+                                # Determine winner based on outcome prices
+                                if outcome_prices[0] > outcome_prices[1]:  # UP token wins
+                                    won = True if pos.token_name == "UP" else False
+                                    resolution_source = "gamma_outcome"
+                                elif outcome_prices[1] > outcome_prices[0]:  # DOWN token wins
+                                    won = True if pos.token_name == "DOWN" else False
+                                    resolution_source = "gamma_outcome"
+                                else:
+                                    # Tie - fallback to Chainlink logic
+                                    won = self._determine_win_from_chainlink(pos)
+                                    resolution_source = "chainlink_oracle"
+
+                                # Close position with official outcome
+                                record = self.stats.close_position(
+                                    won=won,
+                                    resolution_source=resolution_source,
+                                    btc_anchor=0.0,  # Will be fetched if needed
+                                    btc_current=0.0
+                                )
+
+                                if record:
+                                    logger.info(f"Position resolved: {record.won} via {resolution_source}")
+
+                                    # In simulation mode, log the resolution
+                                    if hasattr(self, '_simulation_log_close'):
+                                        self._simulation_log_close(record, pos.hedged)
+
+                                # Mark as no longer awaiting resolution
+                                pos.awaiting_resolution = False
+                                return
+
+                    # Wait before next poll
+                    await asyncio.sleep(poll_interval)
+
+                except Exception as e:
+                    logger.warning(f"Error during resolution polling: {e}")
+                    await asyncio.sleep(poll_interval)
+
+            # Max polling time reached - fallback to Chainlink
+            logger.warning(f"Max polling time reached for {self.state.slug}, using Chainlink fallback")
+            won = self._determine_win_from_chainlink(pos)
+            record = self.stats.close_position(
+                won=won,
+                resolution_source="chainlink_oracle_fallback",
+                btc_anchor=0.0,
+                btc_current=0.0
+            )
+            pos.awaiting_resolution = False
+
+    def _determine_win_from_chainlink(self, pos: Position) -> bool:
+        """Determine win/loss using Chainlink BTC price logic."""
+        # Get BTC anchor price from config or state
+        btc_anchor = getattr(self.config, 'btc_anchor_price', 50000.0)
+        # Get current BTC price from state
+        btc_current = getattr(self.state, 'btc_price', btc_anchor)
+
+        # Determine winner based on price movement
+        if pos.token_name == "UP":
+            return btc_current > btc_anchor
+        else:  # DOWN
+            return btc_current <= btc_anchor
     
     async def run_session(self):
         """Run single market session with dashboard."""
@@ -2395,7 +2528,7 @@ class LiveTradingBot:
                     task.cancel()
                     try:
                         await task
-                    except:
+                    except Exception:
                         pass
             
             # Graceful WebSocket shutdown
@@ -2403,7 +2536,7 @@ class LiveTradingBot:
             try:
                 ws_task.cancel()
                 await ws_task
-            except:
+            except Exception:
                 pass
             
             # Stop User WebSocket for order tracking
@@ -2413,7 +2546,7 @@ class LiveTradingBot:
                 try:
                     self._user_ws_task.cancel()
                     await self._user_ws_task
-                except:
+                except Exception:
                     pass
     
     async def _safe_execute_entry(self, signal: str):
@@ -2440,7 +2573,7 @@ class LiveTradingBot:
 
         sim_note = ""
         if self.config.simulation.enabled:
-            sim_note = "🎮 <b>SIMULATION MODE</b> — no real orders\n"
+            sim_note = "GAME <b>SIMULATION MODE</b> — no real orders\n"
         await self.telegram.send_message(
             f"{sim_note}"
             f"🤖 <b>Bot Started</b>\n"
@@ -2482,10 +2615,10 @@ class LiveTradingBot:
                 try:
                     self._chainlink_task.cancel()
                     await self._chainlink_task
-                except:
+                except Exception:
                     pass
             
-            await self.telegram.send_message("🛑 Bot stopped")
+            await self.telegram.send_message("STOP Bot stopped")
             await self.telegram.close()
             
             console.print("[green]Bot stopped.[/green]")

@@ -62,6 +62,7 @@ class EntryConfig:
     max_entry_price: float = 0.75
     ws_recovery_timeout_sec: int = 10
     max_daily_trades: int = 20
+    daily_stop_loss_usd: float = -5.0
 
 
 @dataclass
