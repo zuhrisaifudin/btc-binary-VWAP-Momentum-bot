@@ -32254,3 +32254,677 @@
 2026-07-06 13:58:50 [btc_live.orders] ERROR: ENTRY FAILED: Could not get initial price
 2026-07-06 13:58:50 [btc_live.signals] ERROR: MAIN ENTRY FAILED: Could not get price
 2026-07-06 13:58:50 [btc_live] ERROR: Main entry failed: Could not get price
+2026-07-06 13:58:51 [btc_live.signals] INFO: ============================================================
+2026-07-06 13:58:51 [btc_live.signals] INFO: TRADE SIGNAL TRIGGERED
+2026-07-06 13:58:51 [btc_live.signals] INFO:   Time: 2026-07-06T13:58:51.158571
+2026-07-06 13:58:51 [btc_live.signals] INFO:   Market: btc-updown-5m-1783320900
+2026-07-06 13:58:51 [btc_live.signals] INFO:   Signal: BUY_UP
+2026-07-06 13:58:51 [btc_live.signals] INFO:   Token: UP
+2026-07-06 13:58:51 [btc_live.signals] INFO:   Elapsed: 231s | Remaining: 69s | Bin: 2
+2026-07-06 13:58:51 [btc_live.signals] INFO:   --- UP ---
+2026-07-06 13:58:51 [btc_live.signals] INFO:     Price:   LAST=0.7400  BID=0.7300  ASK=0.7400
+2026-07-06 13:58:51 [btc_live.signals] INFO:     VWAP 60s: 0.6280  |  Deviation: +17.84%
+2026-07-06 13:58:51 [btc_live.signals] INFO:     Z-Score 5s: +1.10  |  Momentum 90s: +25.42%
+2026-07-06 13:58:51 [btc_live.signals] INFO:     Trades: 735  |  Volume: 18359
+2026-07-06 13:58:51 [btc_live.signals] INFO:     Buy Vol: 17148  |  Sell Vol: 1211
+2026-07-06 13:58:51 [btc_live.signals] INFO:   --- DOWN ---
+2026-07-06 13:58:51 [btc_live.signals] INFO:     Price:   LAST=0.2800  BID=0.2600  ASK=0.2700
+2026-07-06 13:58:51 [btc_live.signals] INFO:     VWAP 60s: 0.3695  |  Deviation: -24.22%
+2026-07-06 13:58:51 [btc_live.signals] INFO:     Z-Score 5s: -0.55  |  Momentum 90s: -32.93%
+2026-07-06 13:58:51 [btc_live.signals] INFO:     Trades: 661  |  Volume: 18798
+2026-07-06 13:58:51 [btc_live.signals] INFO:     Buy Vol: 17495  |  Sell Vol: 1303
+2026-07-06 13:58:51 [btc_live.signals] INFO:   Win Rate: 0.7%
+2026-07-06 13:58:51 [btc_live.signals] INFO:   Config: min_price=0.6, max_price=0.9, min_elapsed=60s, dev_range=0.1%-100%, no_entry_cutoff=30s
+2026-07-06 13:58:51 [btc_live.signals] INFO:   BTC Chainlink: $62,931.89 (anchor: $62,922.00)
+2026-07-06 13:58:51 [btc_live.signals] INFO:   BTC Deviation: $+9.89 (+0.0157%)
+2026-07-06 13:58:51 [btc_live.signals] INFO: ============================================================
+2026-07-06 13:58:51 [btc_live] INFO: Executing entry: UP
+2026-07-06 13:58:51 [btc_live.orders] INFO: ============================================================
+2026-07-06 13:58:51 [btc_live.orders] INFO: DUAL POSITION STRATEGY (Trap Play)
+2026-07-06 13:58:51 [btc_live.orders] INFO:   Total Budget: $2.00
+2026-07-06 13:58:51 [btc_live.orders] INFO:   Main Allocation: 90% = $1.80
+2026-07-06 13:58:51 [btc_live.orders] INFO:   Trap Allocation: 10% = $0.20
+2026-07-06 13:58:51 [btc_live.orders] INFO: ============================================================
+2026-07-06 13:58:51 [btc_live.orders] INFO:   Market Prices:
+2026-07-06 13:58:51 [btc_live.orders] INFO:     Main (701403575576052212125902024228...): $0.7400
+2026-07-06 13:58:51 [btc_live.orders] INFO:     Trap (821834559289644693906476077245...): $0.2700
+2026-07-06 13:58:51 [btc_live.orders] INFO:     Sum: $1.0100 (should be ~$1.00)
+2026-07-06 13:58:51 [btc_live.orders] WARNING:   Trap price $0.2700 > max $0.2500 - skipping trap position
+2026-07-06 13:58:51 [btc_live.orders] INFO: ============================================================
+2026-07-06 13:58:51 [btc_live.orders] INFO: ENTRY EXECUTION STARTED
+2026-07-06 13:58:51 [btc_live.orders] INFO:   Timestamp: 2026-07-06T13:58:51.161137
+2026-07-06 13:58:51 [btc_live.orders] INFO:   Token: 7014035755760522121259020242287537339303...
+2026-07-06 13:58:51 [btc_live.orders] INFO:   Budget: $2.0
+2026-07-06 13:58:51 [btc_live.orders] INFO:   Price Offset: 0.0
+2026-07-06 13:58:51 [btc_live.orders] INFO:   Max Retries: 3
+2026-07-06 13:58:51 [btc_live.orders] INFO:   Max Entry Price: 0.91
+2026-07-06 13:58:51 [btc_live.orders] INFO:   WebSocket Price: None
+2026-07-06 13:58:51 [btc_live.orders] ERROR: ENTRY FAILED: Could not get initial price
+2026-07-06 13:58:51 [btc_live.signals] ERROR: MAIN ENTRY FAILED: Could not get price
+2026-07-06 13:58:51 [btc_live] ERROR: Main entry failed: Could not get price
+2026-07-06 13:58:51 [btc_live.signals] INFO: ============================================================
+2026-07-06 13:58:51 [btc_live.signals] INFO: TRADE SIGNAL TRIGGERED
+2026-07-06 13:58:51 [btc_live.signals] INFO:   Time: 2026-07-06T13:58:51.411028
+2026-07-06 13:58:51 [btc_live.signals] INFO:   Market: btc-updown-5m-1783320900
+2026-07-06 13:58:51 [btc_live.signals] INFO:   Signal: BUY_UP
+2026-07-06 13:58:51 [btc_live.signals] INFO:   Token: UP
+2026-07-06 13:58:51 [btc_live.signals] INFO:   Elapsed: 231s | Remaining: 69s | Bin: 2
+2026-07-06 13:58:51 [btc_live.signals] INFO:   --- UP ---
+2026-07-06 13:58:51 [btc_live.signals] INFO:     Price:   LAST=0.7400  BID=0.7300  ASK=0.7400
+2026-07-06 13:58:51 [btc_live.signals] INFO:     VWAP 60s: 0.6280  |  Deviation: +17.84%
+2026-07-06 13:58:51 [btc_live.signals] INFO:     Z-Score 5s: +1.10  |  Momentum 90s: +25.42%
+2026-07-06 13:58:51 [btc_live.signals] INFO:     Trades: 735  |  Volume: 18359
+2026-07-06 13:58:51 [btc_live.signals] INFO:     Buy Vol: 17148  |  Sell Vol: 1211
+2026-07-06 13:58:51 [btc_live.signals] INFO:   --- DOWN ---
+2026-07-06 13:58:51 [btc_live.signals] INFO:     Price:   LAST=0.2700  BID=0.2600  ASK=0.2700
+2026-07-06 13:58:51 [btc_live.signals] INFO:     VWAP 60s: 0.3693  |  Deviation: -26.90%
+2026-07-06 13:58:51 [btc_live.signals] INFO:     Z-Score 5s: -2.46  |  Momentum 90s: -35.33%
+2026-07-06 13:58:51 [btc_live.signals] INFO:     Trades: 662  |  Volume: 18803
+2026-07-06 13:58:51 [btc_live.signals] INFO:     Buy Vol: 17500  |  Sell Vol: 1303
+2026-07-06 13:58:51 [btc_live.signals] INFO:   Win Rate: 0.7%
+2026-07-06 13:58:51 [btc_live.signals] INFO:   Config: min_price=0.6, max_price=0.9, min_elapsed=60s, dev_range=0.1%-100%, no_entry_cutoff=30s
+2026-07-06 13:58:51 [btc_live.signals] INFO:   BTC Chainlink: $62,931.89 (anchor: $62,922.00)
+2026-07-06 13:58:51 [btc_live.signals] INFO:   BTC Deviation: $+9.89 (+0.0157%)
+2026-07-06 13:58:51 [btc_live.signals] INFO: ============================================================
+2026-07-06 13:58:51 [btc_live] INFO: Executing entry: UP
+2026-07-06 13:58:51 [btc_live.orders] INFO: ============================================================
+2026-07-06 13:58:51 [btc_live.orders] INFO: DUAL POSITION STRATEGY (Trap Play)
+2026-07-06 13:58:51 [btc_live.orders] INFO:   Total Budget: $2.00
+2026-07-06 13:58:51 [btc_live.orders] INFO:   Main Allocation: 90% = $1.80
+2026-07-06 13:58:51 [btc_live.orders] INFO:   Trap Allocation: 10% = $0.20
+2026-07-06 13:58:51 [btc_live.orders] INFO: ============================================================
+2026-07-06 13:58:51 [btc_live.orders] INFO:   Market Prices:
+2026-07-06 13:58:51 [btc_live.orders] INFO:     Main (701403575576052212125902024228...): $0.7400
+2026-07-06 13:58:51 [btc_live.orders] INFO:     Trap (821834559289644693906476077245...): $0.2700
+2026-07-06 13:58:51 [btc_live.orders] INFO:     Sum: $1.0100 (should be ~$1.00)
+2026-07-06 13:58:51 [btc_live.orders] WARNING:   Trap price $0.2700 > max $0.2500 - skipping trap position
+2026-07-06 13:58:51 [btc_live.orders] INFO: ============================================================
+2026-07-06 13:58:51 [btc_live.orders] INFO: ENTRY EXECUTION STARTED
+2026-07-06 13:58:51 [btc_live.orders] INFO:   Timestamp: 2026-07-06T13:58:51.414581
+2026-07-06 13:58:51 [btc_live.orders] INFO:   Token: 7014035755760522121259020242287537339303...
+2026-07-06 13:58:51 [btc_live.orders] INFO:   Budget: $2.0
+2026-07-06 13:58:51 [btc_live.orders] INFO:   Price Offset: 0.0
+2026-07-06 13:58:51 [btc_live.orders] INFO:   Max Retries: 3
+2026-07-06 13:58:51 [btc_live.orders] INFO:   Max Entry Price: 0.91
+2026-07-06 13:58:51 [btc_live.orders] INFO:   WebSocket Price: None
+2026-07-06 13:58:51 [btc_live.orders] ERROR: ENTRY FAILED: Could not get initial price
+2026-07-06 13:58:51 [btc_live.signals] ERROR: MAIN ENTRY FAILED: Could not get price
+2026-07-06 13:58:51 [btc_live] ERROR: Main entry failed: Could not get price
+2026-07-06 13:58:51 [btc_live.signals] INFO: ============================================================
+2026-07-06 13:58:51 [btc_live.signals] INFO: TRADE SIGNAL TRIGGERED
+2026-07-06 13:58:51 [btc_live.signals] INFO:   Time: 2026-07-06T13:58:51.676605
+2026-07-06 13:58:51 [btc_live.signals] INFO:   Market: btc-updown-5m-1783320900
+2026-07-06 13:58:51 [btc_live.signals] INFO:   Signal: BUY_UP
+2026-07-06 13:58:51 [btc_live.signals] INFO:   Token: UP
+2026-07-06 13:58:51 [btc_live.signals] INFO:   Elapsed: 232s | Remaining: 68s | Bin: 2
+2026-07-06 13:58:51 [btc_live.signals] INFO:   --- UP ---
+2026-07-06 13:58:51 [btc_live.signals] INFO:     Price:   LAST=0.7400  BID=0.7300  ASK=0.7400
+2026-07-06 13:58:51 [btc_live.signals] INFO:     VWAP 60s: 0.6280  |  Deviation: +17.83%
+2026-07-06 13:58:51 [btc_live.signals] INFO:     Z-Score 5s: +1.05  |  Momentum 90s: +25.42%
+2026-07-06 13:58:51 [btc_live.signals] INFO:     Trades: 736  |  Volume: 18362
+2026-07-06 13:58:51 [btc_live.signals] INFO:     Buy Vol: 17151  |  Sell Vol: 1211
+2026-07-06 13:58:51 [btc_live.signals] INFO:   --- DOWN ---
+2026-07-06 13:58:51 [btc_live.signals] INFO:     Price:   LAST=0.2700  BID=0.2600  ASK=0.2700
+2026-07-06 13:58:51 [btc_live.signals] INFO:     VWAP 60s: 0.3692  |  Deviation: -26.86%
+2026-07-06 13:58:51 [btc_live.signals] INFO:     Z-Score 5s: -2.02  |  Momentum 90s: -35.33%
+2026-07-06 13:58:51 [btc_live.signals] INFO:     Trades: 663  |  Volume: 18810
+2026-07-06 13:58:51 [btc_live.signals] INFO:     Buy Vol: 17507  |  Sell Vol: 1303
+2026-07-06 13:58:51 [btc_live.signals] INFO:   Win Rate: 0.7%
+2026-07-06 13:58:51 [btc_live.signals] INFO:   Config: min_price=0.6, max_price=0.9, min_elapsed=60s, dev_range=0.1%-100%, no_entry_cutoff=30s
+2026-07-06 13:58:51 [btc_live.signals] INFO:   BTC Chainlink: $62,931.89 (anchor: $62,922.00)
+2026-07-06 13:58:51 [btc_live.signals] INFO:   BTC Deviation: $+9.89 (+0.0157%)
+2026-07-06 13:58:51 [btc_live.signals] INFO: ============================================================
+2026-07-06 13:58:51 [btc_live] INFO: Executing entry: UP
+2026-07-06 13:58:51 [btc_live.orders] INFO: ============================================================
+2026-07-06 13:58:51 [btc_live.orders] INFO: DUAL POSITION STRATEGY (Trap Play)
+2026-07-06 13:58:51 [btc_live.orders] INFO:   Total Budget: $2.00
+2026-07-06 13:58:51 [btc_live.orders] INFO:   Main Allocation: 90% = $1.80
+2026-07-06 13:58:51 [btc_live.orders] INFO:   Trap Allocation: 10% = $0.20
+2026-07-06 13:58:51 [btc_live.orders] INFO: ============================================================
+2026-07-06 13:58:51 [btc_live.orders] INFO:   Market Prices:
+2026-07-06 13:58:51 [btc_live.orders] INFO:     Main (701403575576052212125902024228...): $0.7400
+2026-07-06 13:58:51 [btc_live.orders] INFO:     Trap (821834559289644693906476077245...): $0.2700
+2026-07-06 13:58:51 [btc_live.orders] INFO:     Sum: $1.0100 (should be ~$1.00)
+2026-07-06 13:58:51 [btc_live.orders] WARNING:   Trap price $0.2700 > max $0.2500 - skipping trap position
+2026-07-06 13:58:51 [btc_live.orders] INFO: ============================================================
+2026-07-06 13:58:51 [btc_live.orders] INFO: ENTRY EXECUTION STARTED
+2026-07-06 13:58:51 [btc_live.orders] INFO:   Timestamp: 2026-07-06T13:58:51.679269
+2026-07-06 13:58:51 [btc_live.orders] INFO:   Token: 7014035755760522121259020242287537339303...
+2026-07-06 13:58:51 [btc_live.orders] INFO:   Budget: $2.0
+2026-07-06 13:58:51 [btc_live.orders] INFO:   Price Offset: 0.0
+2026-07-06 13:58:51 [btc_live.orders] INFO:   Max Retries: 3
+2026-07-06 13:58:51 [btc_live.orders] INFO:   Max Entry Price: 0.91
+2026-07-06 13:58:51 [btc_live.orders] INFO:   WebSocket Price: None
+2026-07-06 13:58:51 [btc_live.orders] ERROR: ENTRY FAILED: Could not get initial price
+2026-07-06 13:58:51 [btc_live.signals] ERROR: MAIN ENTRY FAILED: Could not get price
+2026-07-06 13:58:51 [btc_live] ERROR: Main entry failed: Could not get price
+2026-07-06 13:58:51 [btc_live.signals] INFO: ============================================================
+2026-07-06 13:58:51 [btc_live.signals] INFO: TRADE SIGNAL TRIGGERED
+2026-07-06 13:58:51 [btc_live.signals] INFO:   Time: 2026-07-06T13:58:51.938186
+2026-07-06 13:58:51 [btc_live.signals] INFO:   Market: btc-updown-5m-1783320900
+2026-07-06 13:58:51 [btc_live.signals] INFO:   Signal: BUY_UP
+2026-07-06 13:58:51 [btc_live.signals] INFO:   Token: UP
+2026-07-06 13:58:51 [btc_live.signals] INFO:   Elapsed: 232s | Remaining: 68s | Bin: 2
+2026-07-06 13:58:51 [btc_live.signals] INFO:   --- UP ---
+2026-07-06 13:58:51 [btc_live.signals] INFO:     Price:   LAST=0.7400  BID=0.7300  ASK=0.7400
+2026-07-06 13:58:51 [btc_live.signals] INFO:     VWAP 60s: 0.6280  |  Deviation: +17.83%
+2026-07-06 13:58:51 [btc_live.signals] INFO:     Z-Score 5s: +1.25  |  Momentum 90s: +25.42%
+2026-07-06 13:58:51 [btc_live.signals] INFO:     Trades: 736  |  Volume: 18362
+2026-07-06 13:58:51 [btc_live.signals] INFO:     Buy Vol: 17151  |  Sell Vol: 1211
+2026-07-06 13:58:51 [btc_live.signals] INFO:   --- DOWN ---
+2026-07-06 13:58:51 [btc_live.signals] INFO:     Price:   LAST=0.2700  BID=0.2600  ASK=0.2700
+2026-07-06 13:58:51 [btc_live.signals] INFO:     VWAP 60s: 0.3688  |  Deviation: -26.80%
+2026-07-06 13:58:51 [btc_live.signals] INFO:     Z-Score 5s: -2.02  |  Momentum 90s: -35.33%
+2026-07-06 13:58:51 [btc_live.signals] INFO:     Trades: 663  |  Volume: 18810
+2026-07-06 13:58:51 [btc_live.signals] INFO:     Buy Vol: 17507  |  Sell Vol: 1303
+2026-07-06 13:58:51 [btc_live.signals] INFO:   Win Rate: 0.7%
+2026-07-06 13:58:51 [btc_live.signals] INFO:   Config: min_price=0.6, max_price=0.9, min_elapsed=60s, dev_range=0.1%-100%, no_entry_cutoff=30s
+2026-07-06 13:58:51 [btc_live.signals] INFO:   BTC Chainlink: $62,931.89 (anchor: $62,922.00)
+2026-07-06 13:58:51 [btc_live.signals] INFO:   BTC Deviation: $+9.89 (+0.0157%)
+2026-07-06 13:58:51 [btc_live.signals] INFO: ============================================================
+2026-07-06 13:58:51 [btc_live] INFO: Executing entry: UP
+2026-07-06 13:58:51 [btc_live.orders] INFO: ============================================================
+2026-07-06 13:58:51 [btc_live.orders] INFO: DUAL POSITION STRATEGY (Trap Play)
+2026-07-06 13:58:51 [btc_live.orders] INFO:   Total Budget: $2.00
+2026-07-06 13:58:51 [btc_live.orders] INFO:   Main Allocation: 90% = $1.80
+2026-07-06 13:58:51 [btc_live.orders] INFO:   Trap Allocation: 10% = $0.20
+2026-07-06 13:58:51 [btc_live.orders] INFO: ============================================================
+2026-07-06 13:58:51 [btc_live.orders] INFO:   Market Prices:
+2026-07-06 13:58:51 [btc_live.orders] INFO:     Main (701403575576052212125902024228...): $0.7400
+2026-07-06 13:58:51 [btc_live.orders] INFO:     Trap (821834559289644693906476077245...): $0.2700
+2026-07-06 13:58:51 [btc_live.orders] INFO:     Sum: $1.0100 (should be ~$1.00)
+2026-07-06 13:58:51 [btc_live.orders] WARNING:   Trap price $0.2700 > max $0.2500 - skipping trap position
+2026-07-06 13:58:51 [btc_live.orders] INFO: ============================================================
+2026-07-06 13:58:51 [btc_live.orders] INFO: ENTRY EXECUTION STARTED
+2026-07-06 13:58:51 [btc_live.orders] INFO:   Timestamp: 2026-07-06T13:58:51.940695
+2026-07-06 13:58:51 [btc_live.orders] INFO:   Token: 7014035755760522121259020242287537339303...
+2026-07-06 13:58:51 [btc_live.orders] INFO:   Budget: $2.0
+2026-07-06 13:58:51 [btc_live.orders] INFO:   Price Offset: 0.0
+2026-07-06 13:58:51 [btc_live.orders] INFO:   Max Retries: 3
+2026-07-06 13:58:51 [btc_live.orders] INFO:   Max Entry Price: 0.91
+2026-07-06 13:58:51 [btc_live.orders] INFO:   WebSocket Price: None
+2026-07-06 13:58:51 [btc_live.orders] ERROR: ENTRY FAILED: Could not get initial price
+2026-07-06 13:58:51 [btc_live.signals] ERROR: MAIN ENTRY FAILED: Could not get price
+2026-07-06 13:58:51 [btc_live] ERROR: Main entry failed: Could not get price
+2026-07-06 13:58:52 [btc_live.signals] INFO: ============================================================
+2026-07-06 13:58:52 [btc_live.signals] INFO: TRADE SIGNAL TRIGGERED
+2026-07-06 13:58:52 [btc_live.signals] INFO:   Time: 2026-07-06T13:58:52.193539
+2026-07-06 13:58:52 [btc_live.signals] INFO:   Market: btc-updown-5m-1783320900
+2026-07-06 13:58:52 [btc_live.signals] INFO:   Signal: BUY_UP
+2026-07-06 13:58:52 [btc_live.signals] INFO:   Token: UP
+2026-07-06 13:58:52 [btc_live.signals] INFO:   Elapsed: 232s | Remaining: 68s | Bin: 2
+2026-07-06 13:58:52 [btc_live.signals] INFO:   --- UP ---
+2026-07-06 13:58:52 [btc_live.signals] INFO:     Price:   LAST=0.7300  BID=0.7300  ASK=0.7400
+2026-07-06 13:58:52 [btc_live.signals] INFO:     VWAP 60s: 0.6282  |  Deviation: +16.21%
+2026-07-06 13:58:52 [btc_live.signals] INFO:     Z-Score 5s: +0.00  |  Momentum 90s: +23.73%
+2026-07-06 13:58:52 [btc_live.signals] INFO:     Trades: 737  |  Volume: 18367
+2026-07-06 13:58:52 [btc_live.signals] INFO:     Buy Vol: 17151  |  Sell Vol: 1216
+2026-07-06 13:58:52 [btc_live.signals] INFO:   --- DOWN ---
+2026-07-06 13:58:52 [btc_live.signals] INFO:     Price:   LAST=0.2700  BID=0.2600  ASK=0.2700
+2026-07-06 13:58:52 [btc_live.signals] INFO:     VWAP 60s: 0.3686  |  Deviation: -26.75%
+2026-07-06 13:58:52 [btc_live.signals] INFO:     Z-Score 5s: -1.93  |  Momentum 90s: -35.33%
+2026-07-06 13:58:52 [btc_live.signals] INFO:     Trades: 663  |  Volume: 18810
+2026-07-06 13:58:52 [btc_live.signals] INFO:     Buy Vol: 17507  |  Sell Vol: 1303
+2026-07-06 13:58:52 [btc_live.signals] INFO:   Win Rate: 0.7%
+2026-07-06 13:58:52 [btc_live.signals] INFO:   Config: min_price=0.6, max_price=0.9, min_elapsed=60s, dev_range=0.1%-100%, no_entry_cutoff=30s
+2026-07-06 13:58:52 [btc_live.signals] INFO:   BTC Chainlink: $62,931.89 (anchor: $62,922.00)
+2026-07-06 13:58:52 [btc_live.signals] INFO:   BTC Deviation: $+9.89 (+0.0157%)
+2026-07-06 13:58:52 [btc_live.signals] INFO: ============================================================
+2026-07-06 13:58:52 [btc_live] INFO: Executing entry: UP
+2026-07-06 13:58:52 [btc_live.orders] INFO: ============================================================
+2026-07-06 13:58:52 [btc_live.orders] INFO: DUAL POSITION STRATEGY (Trap Play)
+2026-07-06 13:58:52 [btc_live.orders] INFO:   Total Budget: $2.00
+2026-07-06 13:58:52 [btc_live.orders] INFO:   Main Allocation: 90% = $1.80
+2026-07-06 13:58:52 [btc_live.orders] INFO:   Trap Allocation: 10% = $0.20
+2026-07-06 13:58:52 [btc_live.orders] INFO: ============================================================
+2026-07-06 13:58:52 [btc_live.orders] INFO:   Market Prices:
+2026-07-06 13:58:52 [btc_live.orders] INFO:     Main (701403575576052212125902024228...): $0.7400
+2026-07-06 13:58:52 [btc_live.orders] INFO:     Trap (821834559289644693906476077245...): $0.2700
+2026-07-06 13:58:52 [btc_live.orders] INFO:     Sum: $1.0100 (should be ~$1.00)
+2026-07-06 13:58:52 [btc_live.orders] WARNING:   Trap price $0.2700 > max $0.2500 - skipping trap position
+2026-07-06 13:58:52 [btc_live.orders] INFO: ============================================================
+2026-07-06 13:58:52 [btc_live.orders] INFO: ENTRY EXECUTION STARTED
+2026-07-06 13:58:52 [btc_live.orders] INFO:   Timestamp: 2026-07-06T13:58:52.196162
+2026-07-06 13:58:52 [btc_live.orders] INFO:   Token: 7014035755760522121259020242287537339303...
+2026-07-06 13:58:52 [btc_live.orders] INFO:   Budget: $2.0
+2026-07-06 13:58:52 [btc_live.orders] INFO:   Price Offset: 0.0
+2026-07-06 13:58:52 [btc_live.orders] INFO:   Max Retries: 3
+2026-07-06 13:58:52 [btc_live.orders] INFO:   Max Entry Price: 0.91
+2026-07-06 13:58:52 [btc_live.orders] INFO:   WebSocket Price: None
+2026-07-06 13:58:52 [btc_live.orders] ERROR: ENTRY FAILED: Could not get initial price
+2026-07-06 13:58:52 [btc_live.signals] ERROR: MAIN ENTRY FAILED: Could not get price
+2026-07-06 13:58:52 [btc_live] ERROR: Main entry failed: Could not get price
+2026-07-06 13:58:52 [btc_live.signals] INFO: ============================================================
+2026-07-06 13:58:52 [btc_live.signals] INFO: TRADE SIGNAL TRIGGERED
+2026-07-06 13:58:52 [btc_live.signals] INFO:   Time: 2026-07-06T13:58:52.447558
+2026-07-06 13:58:52 [btc_live.signals] INFO:   Market: btc-updown-5m-1783320900
+2026-07-06 13:58:52 [btc_live.signals] INFO:   Signal: BUY_UP
+2026-07-06 13:58:52 [btc_live.signals] INFO:   Token: UP
+2026-07-06 13:58:52 [btc_live.signals] INFO:   Elapsed: 232s | Remaining: 68s | Bin: 2
+2026-07-06 13:58:52 [btc_live.signals] INFO:   --- UP ---
+2026-07-06 13:58:52 [btc_live.signals] INFO:     Price:   LAST=0.7300  BID=0.7300  ASK=0.7400
+2026-07-06 13:58:52 [btc_live.signals] INFO:     VWAP 60s: 0.6284  |  Deviation: +16.16%
+2026-07-06 13:58:52 [btc_live.signals] INFO:     Z-Score 5s: -0.15  |  Momentum 90s: +23.73%
+2026-07-06 13:58:52 [btc_live.signals] INFO:     Trades: 738  |  Volume: 18382
+2026-07-06 13:58:52 [btc_live.signals] INFO:     Buy Vol: 17151  |  Sell Vol: 1231
+2026-07-06 13:58:52 [btc_live.signals] INFO:   --- DOWN ---
+2026-07-06 13:58:52 [btc_live.signals] INFO:     Price:   LAST=0.2700  BID=0.2600  ASK=0.2700
+2026-07-06 13:58:52 [btc_live.signals] INFO:     VWAP 60s: 0.3684  |  Deviation: -26.71%
+2026-07-06 13:58:52 [btc_live.signals] INFO:     Z-Score 5s: -1.44  |  Momentum 90s: -35.41%
+2026-07-06 13:58:52 [btc_live.signals] INFO:     Trades: 665  |  Volume: 18820
+2026-07-06 13:58:52 [btc_live.signals] INFO:     Buy Vol: 17517  |  Sell Vol: 1303
+2026-07-06 13:58:52 [btc_live.signals] INFO:   Win Rate: 0.7%
+2026-07-06 13:58:52 [btc_live.signals] INFO:   Config: min_price=0.6, max_price=0.9, min_elapsed=60s, dev_range=0.1%-100%, no_entry_cutoff=30s
+2026-07-06 13:58:52 [btc_live.signals] INFO:   BTC Chainlink: $62,931.91 (anchor: $62,922.00)
+2026-07-06 13:58:52 [btc_live.signals] INFO:   BTC Deviation: $+9.91 (+0.0157%)
+2026-07-06 13:58:52 [btc_live.signals] INFO: ============================================================
+2026-07-06 13:58:52 [btc_live] INFO: Executing entry: UP
+2026-07-06 13:58:52 [btc_live.orders] INFO: ============================================================
+2026-07-06 13:58:52 [btc_live.orders] INFO: DUAL POSITION STRATEGY (Trap Play)
+2026-07-06 13:58:52 [btc_live.orders] INFO:   Total Budget: $2.00
+2026-07-06 13:58:52 [btc_live.orders] INFO:   Main Allocation: 90% = $1.80
+2026-07-06 13:58:52 [btc_live.orders] INFO:   Trap Allocation: 10% = $0.20
+2026-07-06 13:58:52 [btc_live.orders] INFO: ============================================================
+2026-07-06 13:58:52 [btc_live.orders] INFO:   Market Prices:
+2026-07-06 13:58:52 [btc_live.orders] INFO:     Main (701403575576052212125902024228...): $0.7400
+2026-07-06 13:58:52 [btc_live.orders] INFO:     Trap (821834559289644693906476077245...): $0.2700
+2026-07-06 13:58:52 [btc_live.orders] INFO:     Sum: $1.0100 (should be ~$1.00)
+2026-07-06 13:58:52 [btc_live.orders] WARNING:   Trap price $0.2700 > max $0.2500 - skipping trap position
+2026-07-06 13:58:52 [btc_live.orders] INFO: ============================================================
+2026-07-06 13:58:52 [btc_live.orders] INFO: ENTRY EXECUTION STARTED
+2026-07-06 13:58:52 [btc_live.orders] INFO:   Timestamp: 2026-07-06T13:58:52.450149
+2026-07-06 13:58:52 [btc_live.orders] INFO:   Token: 7014035755760522121259020242287537339303...
+2026-07-06 13:58:52 [btc_live.orders] INFO:   Budget: $2.0
+2026-07-06 13:58:52 [btc_live.orders] INFO:   Price Offset: 0.0
+2026-07-06 13:58:52 [btc_live.orders] INFO:   Max Retries: 3
+2026-07-06 13:58:52 [btc_live.orders] INFO:   Max Entry Price: 0.91
+2026-07-06 13:58:52 [btc_live.orders] INFO:   WebSocket Price: None
+2026-07-06 13:58:52 [btc_live.orders] ERROR: ENTRY FAILED: Could not get initial price
+2026-07-06 13:58:52 [btc_live.signals] ERROR: MAIN ENTRY FAILED: Could not get price
+2026-07-06 13:58:52 [btc_live] ERROR: Main entry failed: Could not get price
+2026-07-06 13:58:52 [btc_live.signals] INFO: ============================================================
+2026-07-06 13:58:52 [btc_live.signals] INFO: TRADE SIGNAL TRIGGERED
+2026-07-06 13:58:52 [btc_live.signals] INFO:   Time: 2026-07-06T13:58:52.701297
+2026-07-06 13:58:52 [btc_live.signals] INFO:   Market: btc-updown-5m-1783320900
+2026-07-06 13:58:52 [btc_live.signals] INFO:   Signal: BUY_UP
+2026-07-06 13:58:52 [btc_live.signals] INFO:   Token: UP
+2026-07-06 13:58:52 [btc_live.signals] INFO:   Elapsed: 233s | Remaining: 67s | Bin: 2
+2026-07-06 13:58:52 [btc_live.signals] INFO:   --- UP ---
+2026-07-06 13:58:52 [btc_live.signals] INFO:     Price:   LAST=0.7900  BID=0.7800  ASK=0.7900
+2026-07-06 13:58:52 [btc_live.signals] INFO:     VWAP 60s: 0.6330  |  Deviation: +24.81%
+2026-07-06 13:58:52 [btc_live.signals] INFO:     Z-Score 5s: +2.52  |  Momentum 90s: +33.90%
+2026-07-06 13:58:52 [btc_live.signals] INFO:     Trades: 742  |  Volume: 18581
+2026-07-06 13:58:52 [btc_live.signals] INFO:     Buy Vol: 17348  |  Sell Vol: 1233
+2026-07-06 13:58:52 [btc_live.signals] INFO:   --- DOWN ---
+2026-07-06 13:58:52 [btc_live.signals] INFO:     Price:   LAST=0.2600  BID=0.2100  ASK=0.2200
+2026-07-06 13:58:52 [btc_live.signals] INFO:     VWAP 60s: 0.3679  |  Deviation: -29.33%
+2026-07-06 13:58:52 [btc_live.signals] INFO:     Z-Score 5s: -2.21  |  Momentum 90s: -37.60%
+2026-07-06 13:58:52 [btc_live.signals] INFO:     Trades: 666  |  Volume: 18843
+2026-07-06 13:58:52 [btc_live.signals] INFO:     Buy Vol: 17517  |  Sell Vol: 1326
+2026-07-06 13:58:52 [btc_live.signals] INFO:   Win Rate: 0.8%
+2026-07-06 13:58:52 [btc_live.signals] INFO:   Config: min_price=0.6, max_price=0.9, min_elapsed=60s, dev_range=0.1%-100%, no_entry_cutoff=30s
+2026-07-06 13:58:52 [btc_live.signals] INFO:   BTC Chainlink: $62,931.91 (anchor: $62,922.00)
+2026-07-06 13:58:52 [btc_live.signals] INFO:   BTC Deviation: $+9.91 (+0.0157%)
+2026-07-06 13:58:52 [btc_live.signals] INFO: ============================================================
+2026-07-06 13:58:52 [btc_live] INFO: Executing entry: UP
+2026-07-06 13:58:52 [btc_live.orders] INFO: ============================================================
+2026-07-06 13:58:52 [btc_live.orders] INFO: DUAL POSITION STRATEGY (Trap Play)
+2026-07-06 13:58:52 [btc_live.orders] INFO:   Total Budget: $2.00
+2026-07-06 13:58:52 [btc_live.orders] INFO:   Main Allocation: 90% = $1.80
+2026-07-06 13:58:52 [btc_live.orders] INFO:   Trap Allocation: 10% = $0.20
+2026-07-06 13:58:52 [btc_live.orders] INFO: ============================================================
+2026-07-06 13:58:52 [btc_live.orders] INFO:   Market Prices:
+2026-07-06 13:58:52 [btc_live.orders] INFO:     Main (701403575576052212125902024228...): $0.7900
+2026-07-06 13:58:52 [btc_live.orders] INFO:     Trap (821834559289644693906476077245...): $0.2200
+2026-07-06 13:58:52 [btc_live.orders] INFO:     Sum: $1.0100 (should be ~$1.00)
+2026-07-06 13:58:52 [btc_live.orders] INFO:   Order Calculation:
+2026-07-06 13:58:52 [btc_live.orders] INFO:     Main: $1.80 / $0.7900 = 5 contracts
+2026-07-06 13:58:52 [btc_live.orders] INFO:     Trap: $0.20 / $0.2200 = 5 contracts
+2026-07-06 13:58:52 [btc_live.orders] INFO:   Executing both orders simultaneously...
+2026-07-06 13:58:52 [btc_live.orders] INFO: --------------------------------------------------
+2026-07-06 13:58:52 [btc_live.orders] INFO: PLACING ORDER
+2026-07-06 13:58:52 [btc_live.orders] INFO:   Token: 701403575576052212125902024228...
+2026-07-06 13:58:52 [btc_live.orders] INFO:   Side: BUY
+2026-07-06 13:58:52 [btc_live.orders] INFO:   Price: 0.7900
+2026-07-06 13:58:52 [btc_live.orders] INFO:   Size: 5 contracts
+2026-07-06 13:58:52 [btc_live.orders] INFO:   Value: $3.95
+2026-07-06 13:58:52 [btc_live.orders] INFO:   Type: FAK (Fill-And-Kill)
+2026-07-06 13:58:52 [btc_live.orders] INFO: --------------------------------------------------
+2026-07-06 13:58:52 [btc_live.orders] INFO: PLACING ORDER
+2026-07-06 13:58:52 [btc_live.orders] INFO:   Token: 821834559289644693906476077245...
+2026-07-06 13:58:52 [btc_live.orders] INFO:   Side: BUY
+2026-07-06 13:58:52 [btc_live.orders] INFO:   Price: 0.2200
+2026-07-06 13:58:52 [btc_live.orders] INFO:   Size: 5 contracts
+2026-07-06 13:58:52 [btc_live.orders] INFO:   Value: $1.10
+2026-07-06 13:58:52 [btc_live.orders] INFO:   Type: FAK (Fill-And-Kill)
+2026-07-06 13:58:53 [httpx] INFO: HTTP Request: GET https://clob.polymarket.com/tick-size?token_id=70140357557605221212590202422875373393036192361964596683108688053016418413260 "HTTP/2 200 OK"
+2026-07-06 13:58:53 [httpx] INFO: HTTP Request: GET https://clob.polymarket.com/tick-size?token_id=82183455928964469390647607724536132884855695959110397697431363645362803642058 "HTTP/2 200 OK"
+2026-07-06 13:58:53 [httpx] INFO: HTTP Request: GET https://clob.polymarket.com/neg-risk?token_id=70140357557605221212590202422875373393036192361964596683108688053016418413260 "HTTP/2 200 OK"
+2026-07-06 13:58:53 [httpx] INFO: HTTP Request: GET https://clob.polymarket.com/neg-risk?token_id=82183455928964469390647607724536132884855695959110397697431363645362803642058 "HTTP/2 200 OK"
+2026-07-06 13:58:53 [httpx] INFO: HTTP Request: GET https://clob.polymarket.com/fee-rate?token_id=70140357557605221212590202422875373393036192361964596683108688053016418413260 "HTTP/2 200 OK"
+2026-07-06 13:58:53 [httpx] INFO: HTTP Request: GET https://clob.polymarket.com/fee-rate?token_id=82183455928964469390647607724536132884855695959110397697431363645362803642058 "HTTP/2 200 OK"
+2026-07-06 13:58:53 [btc_live.orders] DEBUG:   Order signed in 632ms
+2026-07-06 13:58:53 [btc_live.orders] DEBUG:   Order signed in 630ms
+2026-07-06 13:58:53 [httpx] INFO: HTTP Request: POST https://clob.polymarket.com/order "HTTP/2 400 Bad Request"
+2026-07-06 13:58:53 [httpx] INFO: HTTP Request: POST https://clob.polymarket.com/order "HTTP/2 400 Bad Request"
+2026-07-06 13:58:53 [btc_live.executor] ERROR: Order placement error: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:53 [btc_live.orders] ERROR: ORDER FAILED: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:53 [btc_live.orders] ERROR:   Elapsed: 860ms
+2026-07-06 13:58:53 [btc_live.orders] INFO: --------------------------------------------------
+2026-07-06 13:58:53 [btc_live.executor] ERROR: Order placement error: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:53 [btc_live.orders] ERROR: ORDER FAILED: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:53 [btc_live.orders] ERROR:   Elapsed: 858ms
+2026-07-06 13:58:53 [btc_live.orders] INFO: --------------------------------------------------
+2026-07-06 13:58:53 [btc_live.orders] INFO: --------------------------------------------------
+2026-07-06 13:58:53 [btc_live.orders] INFO: DUAL POSITION RESULTS:
+2026-07-06 13:58:54 [btc_live.orders] INFO:   Total Spent: $0.00
+2026-07-06 13:58:54 [btc_live.orders] INFO: ============================================================
+2026-07-06 13:58:54 [btc_live.executor] WARNING: Dual position failed: Main order did not fill
+2026-07-06 13:58:54 [btc_live.signals] ERROR: MAIN ENTRY FAILED: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:54 [btc_live] ERROR: Main entry failed: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:54 [btc_live.signals] ERROR: TRAP ENTRY FAILED: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:54 [btc_live] ERROR: Trap entry failed: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:55 [btc_live.signals] INFO: ============================================================
+2026-07-06 13:58:55 [btc_live.signals] INFO: TRADE SIGNAL TRIGGERED
+2026-07-06 13:58:55 [btc_live.signals] INFO:   Time: 2026-07-06T13:58:55.229052
+2026-07-06 13:58:55 [btc_live.signals] INFO:   Market: btc-updown-5m-1783320900
+2026-07-06 13:58:55 [btc_live.signals] INFO:   Signal: BUY_UP
+2026-07-06 13:58:55 [btc_live.signals] INFO:   Token: UP
+2026-07-06 13:58:55 [btc_live.signals] INFO:   Elapsed: 235s | Remaining: 65s | Bin: 2
+2026-07-06 13:58:55 [btc_live.signals] INFO:   --- UP ---
+2026-07-06 13:58:55 [btc_live.signals] INFO:     Price:   LAST=0.7900  BID=0.7900  ASK=0.8000
+2026-07-06 13:58:55 [btc_live.signals] INFO:     VWAP 60s: 0.6402  |  Deviation: +23.41%
+2026-07-06 13:58:55 [btc_live.signals] INFO:     Z-Score 5s: +0.76  |  Momentum 90s: +35.62%
+2026-07-06 13:58:55 [btc_live.signals] INFO:     Trades: 758  |  Volume: 18870
+2026-07-06 13:58:55 [btc_live.signals] INFO:     Buy Vol: 17612  |  Sell Vol: 1259
+2026-07-06 13:58:55 [btc_live.signals] INFO:   --- DOWN ---
+2026-07-06 13:58:55 [btc_live.signals] INFO:     Price:   LAST=0.2200  BID=0.2000  ASK=0.2100
+2026-07-06 13:58:55 [btc_live.signals] INFO:     VWAP 60s: 0.3626  |  Deviation: -39.33%
+2026-07-06 13:58:55 [btc_live.signals] INFO:     Z-Score 5s: -0.73  |  Momentum 90s: -47.31%
+2026-07-06 13:58:55 [btc_live.signals] INFO:     Trades: 674  |  Volume: 18990
+2026-07-06 13:58:55 [btc_live.signals] INFO:     Buy Vol: 17648  |  Sell Vol: 1342
+2026-07-06 13:58:55 [btc_live.signals] INFO:   Win Rate: 0.8%
+2026-07-06 13:58:55 [btc_live.signals] INFO:   Config: min_price=0.6, max_price=0.9, min_elapsed=60s, dev_range=0.1%-100%, no_entry_cutoff=30s
+2026-07-06 13:58:55 [btc_live.signals] INFO:   BTC Chainlink: $62,931.93 (anchor: $62,922.00)
+2026-07-06 13:58:55 [btc_live.signals] INFO:   BTC Deviation: $+9.93 (+0.0158%)
+2026-07-06 13:58:55 [btc_live.signals] INFO: ============================================================
+2026-07-06 13:58:55 [btc_live] INFO: Executing entry: UP
+2026-07-06 13:58:55 [btc_live.orders] INFO: ============================================================
+2026-07-06 13:58:55 [btc_live.orders] INFO: DUAL POSITION STRATEGY (Trap Play)
+2026-07-06 13:58:55 [btc_live.orders] INFO:   Total Budget: $2.00
+2026-07-06 13:58:55 [btc_live.orders] INFO:   Main Allocation: 90% = $1.80
+2026-07-06 13:58:55 [btc_live.orders] INFO:   Trap Allocation: 10% = $0.20
+2026-07-06 13:58:55 [btc_live.orders] INFO: ============================================================
+2026-07-06 13:58:55 [btc_live.orders] INFO:   Market Prices:
+2026-07-06 13:58:55 [btc_live.orders] INFO:     Main (701403575576052212125902024228...): $0.8000
+2026-07-06 13:58:55 [btc_live.orders] INFO:     Trap (821834559289644693906476077245...): $0.2100
+2026-07-06 13:58:55 [btc_live.orders] INFO:     Sum: $1.0100 (should be ~$1.00)
+2026-07-06 13:58:55 [btc_live.orders] INFO:   Order Calculation:
+2026-07-06 13:58:55 [btc_live.orders] INFO:     Main: $1.80 / $0.8000 = 5 contracts
+2026-07-06 13:58:55 [btc_live.orders] INFO:     Trap: $0.20 / $0.2100 = 5 contracts
+2026-07-06 13:58:55 [btc_live.orders] INFO:   Executing both orders simultaneously...
+2026-07-06 13:58:55 [btc_live.orders] INFO: --------------------------------------------------
+2026-07-06 13:58:55 [btc_live.orders] INFO: PLACING ORDER
+2026-07-06 13:58:55 [btc_live.orders] INFO:   Token: 701403575576052212125902024228...
+2026-07-06 13:58:55 [btc_live.orders] INFO:   Side: BUY
+2026-07-06 13:58:55 [btc_live.orders] INFO:   Price: 0.8000
+2026-07-06 13:58:55 [btc_live.orders] INFO:   Size: 5 contracts
+2026-07-06 13:58:55 [btc_live.orders] INFO:   Value: $4.00
+2026-07-06 13:58:55 [btc_live.orders] INFO:   Type: FAK (Fill-And-Kill)
+2026-07-06 13:58:55 [btc_live.orders] INFO: --------------------------------------------------
+2026-07-06 13:58:55 [btc_live.orders] INFO: PLACING ORDER
+2026-07-06 13:58:55 [btc_live.orders] INFO:   Token: 821834559289644693906476077245...
+2026-07-06 13:58:55 [btc_live.orders] INFO:   Side: BUY
+2026-07-06 13:58:55 [btc_live.orders] INFO:   Price: 0.2100
+2026-07-06 13:58:55 [btc_live.orders] INFO:   Size: 5 contracts
+2026-07-06 13:58:55 [btc_live.orders] INFO:   Value: $1.05
+2026-07-06 13:58:55 [btc_live.orders] INFO:   Type: FAK (Fill-And-Kill)
+2026-07-06 13:58:55 [btc_live.orders] DEBUG:   Order signed in 13ms
+2026-07-06 13:58:55 [btc_live.orders] DEBUG:   Order signed in 13ms
+2026-07-06 13:58:55 [httpx] INFO: HTTP Request: POST https://clob.polymarket.com/order "HTTP/2 400 Bad Request"
+2026-07-06 13:58:55 [httpx] INFO: HTTP Request: POST https://clob.polymarket.com/order "HTTP/2 400 Bad Request"
+2026-07-06 13:58:55 [btc_live.executor] ERROR: Order placement error: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:55 [btc_live.orders] ERROR: ORDER FAILED: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:55 [btc_live.orders] ERROR:   Elapsed: 263ms
+2026-07-06 13:58:55 [btc_live.orders] INFO: --------------------------------------------------
+2026-07-06 13:58:55 [btc_live.executor] ERROR: Order placement error: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:55 [btc_live.orders] ERROR: ORDER FAILED: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:55 [btc_live.orders] ERROR:   Elapsed: 264ms
+2026-07-06 13:58:55 [btc_live.orders] INFO: --------------------------------------------------
+2026-07-06 13:58:55 [btc_live.orders] INFO: --------------------------------------------------
+2026-07-06 13:58:55 [btc_live.orders] INFO: DUAL POSITION RESULTS:
+2026-07-06 13:58:56 [btc_live.orders] INFO:   Total Spent: $0.00
+2026-07-06 13:58:56 [btc_live.orders] INFO: ============================================================
+2026-07-06 13:58:56 [btc_live.executor] WARNING: Dual position failed: Main order did not fill
+2026-07-06 13:58:56 [btc_live.signals] ERROR: MAIN ENTRY FAILED: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:56 [btc_live] ERROR: Main entry failed: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:56 [btc_live.signals] ERROR: TRAP ENTRY FAILED: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:56 [btc_live] ERROR: Trap entry failed: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:56 [btc_live.signals] INFO: ============================================================
+2026-07-06 13:58:56 [btc_live.signals] INFO: TRADE SIGNAL TRIGGERED
+2026-07-06 13:58:56 [btc_live.signals] INFO:   Time: 2026-07-06T13:58:56.586105
+2026-07-06 13:58:56 [btc_live.signals] INFO:   Market: btc-updown-5m-1783320900
+2026-07-06 13:58:56 [btc_live.signals] INFO:   Signal: BUY_UP
+2026-07-06 13:58:56 [btc_live.signals] INFO:   Token: UP
+2026-07-06 13:58:56 [btc_live.signals] INFO:   Elapsed: 237s | Remaining: 63s | Bin: 2
+2026-07-06 13:58:56 [btc_live.signals] INFO:   --- UP ---
+2026-07-06 13:58:56 [btc_live.signals] INFO:     Price:   LAST=0.8000  BID=0.7900  ASK=0.8000
+2026-07-06 13:58:56 [btc_live.signals] INFO:     VWAP 60s: 0.6417  |  Deviation: +24.67%
+2026-07-06 13:58:56 [btc_live.signals] INFO:     Z-Score 5s: +0.79  |  Momentum 90s: +37.63%
+2026-07-06 13:58:56 [btc_live.signals] INFO:     Trades: 763  |  Volume: 18911
+2026-07-06 13:58:56 [btc_live.signals] INFO:     Buy Vol: 17653  |  Sell Vol: 1259
+2026-07-06 13:58:56 [btc_live.signals] INFO:   --- DOWN ---
+2026-07-06 13:58:56 [btc_live.signals] INFO:     Price:   LAST=0.2200  BID=0.2000  ASK=0.2100
+2026-07-06 13:58:56 [btc_live.signals] INFO:     VWAP 60s: 0.3618  |  Deviation: -39.19%
+2026-07-06 13:58:56 [btc_live.signals] INFO:     Z-Score 5s: -0.57  |  Momentum 90s: -47.87%
+2026-07-06 13:58:56 [btc_live.signals] INFO:     Trades: 674  |  Volume: 18990
+2026-07-06 13:58:56 [btc_live.signals] INFO:     Buy Vol: 17648  |  Sell Vol: 1342
+2026-07-06 13:58:56 [btc_live.signals] INFO:   Win Rate: 0.8%
+2026-07-06 13:58:56 [btc_live.signals] INFO:   Config: min_price=0.6, max_price=0.9, min_elapsed=60s, dev_range=0.1%-100%, no_entry_cutoff=30s
+2026-07-06 13:58:56 [btc_live.signals] INFO:   BTC Chainlink: $62,932.92 (anchor: $62,922.00)
+2026-07-06 13:58:56 [btc_live.signals] INFO:   BTC Deviation: $+10.92 (+0.0173%)
+2026-07-06 13:58:56 [btc_live.signals] INFO: ============================================================
+2026-07-06 13:58:56 [btc_live] INFO: Executing entry: UP
+2026-07-06 13:58:56 [btc_live.orders] INFO: ============================================================
+2026-07-06 13:58:56 [btc_live.orders] INFO: DUAL POSITION STRATEGY (Trap Play)
+2026-07-06 13:58:56 [btc_live.orders] INFO:   Total Budget: $2.00
+2026-07-06 13:58:56 [btc_live.orders] INFO:   Main Allocation: 90% = $1.80
+2026-07-06 13:58:56 [btc_live.orders] INFO:   Trap Allocation: 10% = $0.20
+2026-07-06 13:58:56 [btc_live.orders] INFO: ============================================================
+2026-07-06 13:58:56 [btc_live.orders] INFO:   Market Prices:
+2026-07-06 13:58:56 [btc_live.orders] INFO:     Main (701403575576052212125902024228...): $0.8000
+2026-07-06 13:58:56 [btc_live.orders] INFO:     Trap (821834559289644693906476077245...): $0.2100
+2026-07-06 13:58:56 [btc_live.orders] INFO:     Sum: $1.0100 (should be ~$1.00)
+2026-07-06 13:58:56 [btc_live.orders] INFO:   Order Calculation:
+2026-07-06 13:58:56 [btc_live.orders] INFO:     Main: $1.80 / $0.8000 = 5 contracts
+2026-07-06 13:58:56 [btc_live.orders] INFO:     Trap: $0.20 / $0.2100 = 5 contracts
+2026-07-06 13:58:56 [btc_live.orders] INFO:   Executing both orders simultaneously...
+2026-07-06 13:58:56 [btc_live.orders] INFO: --------------------------------------------------
+2026-07-06 13:58:56 [btc_live.orders] INFO: PLACING ORDER
+2026-07-06 13:58:56 [btc_live.orders] INFO:   Token: 701403575576052212125902024228...
+2026-07-06 13:58:56 [btc_live.orders] INFO:   Side: BUY
+2026-07-06 13:58:56 [btc_live.orders] INFO:   Price: 0.8000
+2026-07-06 13:58:56 [btc_live.orders] INFO:   Size: 5 contracts
+2026-07-06 13:58:56 [btc_live.orders] INFO:   Value: $4.00
+2026-07-06 13:58:56 [btc_live.orders] INFO:   Type: FAK (Fill-And-Kill)
+2026-07-06 13:58:56 [btc_live.orders] INFO: --------------------------------------------------
+2026-07-06 13:58:56 [btc_live.orders] INFO: PLACING ORDER
+2026-07-06 13:58:56 [btc_live.orders] INFO:   Token: 821834559289644693906476077245...
+2026-07-06 13:58:56 [btc_live.orders] INFO:   Side: BUY
+2026-07-06 13:58:56 [btc_live.orders] INFO:   Price: 0.2100
+2026-07-06 13:58:56 [btc_live.orders] INFO:   Size: 5 contracts
+2026-07-06 13:58:56 [btc_live.orders] INFO:   Value: $1.05
+2026-07-06 13:58:56 [btc_live.orders] INFO:   Type: FAK (Fill-And-Kill)
+2026-07-06 13:58:56 [btc_live.orders] DEBUG:   Order signed in 28ms
+2026-07-06 13:58:56 [btc_live.orders] DEBUG:   Order signed in 27ms
+2026-07-06 13:58:56 [httpx] INFO: HTTP Request: POST https://clob.polymarket.com/order "HTTP/2 400 Bad Request"
+2026-07-06 13:58:56 [httpx] INFO: HTTP Request: POST https://clob.polymarket.com/order "HTTP/2 400 Bad Request"
+2026-07-06 13:58:56 [btc_live.executor] ERROR: Order placement error: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:56 [btc_live.orders] ERROR: ORDER FAILED: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:56 [btc_live.orders] ERROR:   Elapsed: 241ms
+2026-07-06 13:58:56 [btc_live.orders] INFO: --------------------------------------------------
+2026-07-06 13:58:56 [btc_live.executor] ERROR: Order placement error: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:56 [btc_live.orders] ERROR: ORDER FAILED: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:56 [btc_live.orders] ERROR:   Elapsed: 240ms
+2026-07-06 13:58:56 [btc_live.orders] INFO: --------------------------------------------------
+2026-07-06 13:58:56 [btc_live.orders] INFO: --------------------------------------------------
+2026-07-06 13:58:56 [btc_live.orders] INFO: DUAL POSITION RESULTS:
+2026-07-06 13:58:57 [btc_live.orders] INFO:   Total Spent: $0.00
+2026-07-06 13:58:57 [btc_live.orders] INFO: ============================================================
+2026-07-06 13:58:57 [btc_live.executor] WARNING: Dual position failed: Main order did not fill
+2026-07-06 13:58:57 [btc_live.signals] ERROR: MAIN ENTRY FAILED: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:57 [btc_live] ERROR: Main entry failed: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:57 [btc_live.signals] ERROR: TRAP ENTRY FAILED: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:57 [btc_live] ERROR: Trap entry failed: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:57 [btc_live.signals] INFO: ============================================================
+2026-07-06 13:58:57 [btc_live.signals] INFO: TRADE SIGNAL TRIGGERED
+2026-07-06 13:58:57 [btc_live.signals] INFO:   Time: 2026-07-06T13:58:57.847493
+2026-07-06 13:58:57 [btc_live.signals] INFO:   Market: btc-updown-5m-1783320900
+2026-07-06 13:58:57 [btc_live.signals] INFO:   Signal: BUY_UP
+2026-07-06 13:58:57 [btc_live.signals] INFO:   Token: UP
+2026-07-06 13:58:57 [btc_live.signals] INFO:   Elapsed: 238s | Remaining: 62s | Bin: 2
+2026-07-06 13:58:57 [btc_live.signals] INFO:   --- UP ---
+2026-07-06 13:58:57 [btc_live.signals] INFO:     Price:   LAST=0.7900  BID=0.7900  ASK=0.8000
+2026-07-06 13:58:57 [btc_live.signals] INFO:     VWAP 60s: 0.6428  |  Deviation: +22.89%
+2026-07-06 13:58:57 [btc_live.signals] INFO:     Z-Score 5s: -0.43  |  Momentum 90s: +37.50%
+2026-07-06 13:58:57 [btc_live.signals] INFO:     Trades: 766  |  Volume: 18946
+2026-07-06 13:58:57 [btc_live.signals] INFO:     Buy Vol: 17655  |  Sell Vol: 1292
+2026-07-06 13:58:57 [btc_live.signals] INFO:   --- DOWN ---
+2026-07-06 13:58:57 [btc_live.signals] INFO:     Price:   LAST=0.2100  BID=0.2000  ASK=0.2100
+2026-07-06 13:58:57 [btc_live.signals] INFO:     VWAP 60s: 0.3607  |  Deviation: -41.78%
+2026-07-06 13:58:57 [btc_live.signals] INFO:     Z-Score 5s: -0.71  |  Momentum 90s: -51.54%
+2026-07-06 13:58:57 [btc_live.signals] INFO:     Trades: 676  |  Volume: 19010
+2026-07-06 13:58:57 [btc_live.signals] INFO:     Buy Vol: 17662  |  Sell Vol: 1348
+2026-07-06 13:58:57 [btc_live.signals] INFO:   Win Rate: 0.8%
+2026-07-06 13:58:57 [btc_live.signals] INFO:   Config: min_price=0.6, max_price=0.9, min_elapsed=60s, dev_range=0.1%-100%, no_entry_cutoff=30s
+2026-07-06 13:58:57 [btc_live.signals] INFO:   BTC Chainlink: $62,932.92 (anchor: $62,922.00)
+2026-07-06 13:58:57 [btc_live.signals] INFO:   BTC Deviation: $+10.92 (+0.0174%)
+2026-07-06 13:58:57 [btc_live.signals] INFO: ============================================================
+2026-07-06 13:58:57 [btc_live] INFO: Executing entry: UP
+2026-07-06 13:58:57 [btc_live.orders] INFO: ============================================================
+2026-07-06 13:58:57 [btc_live.orders] INFO: DUAL POSITION STRATEGY (Trap Play)
+2026-07-06 13:58:57 [btc_live.orders] INFO:   Total Budget: $2.00
+2026-07-06 13:58:57 [btc_live.orders] INFO:   Main Allocation: 90% = $1.80
+2026-07-06 13:58:57 [btc_live.orders] INFO:   Trap Allocation: 10% = $0.20
+2026-07-06 13:58:57 [btc_live.orders] INFO: ============================================================
+2026-07-06 13:58:57 [btc_live.orders] INFO:   Market Prices:
+2026-07-06 13:58:57 [btc_live.orders] INFO:     Main (701403575576052212125902024228...): $0.8000
+2026-07-06 13:58:57 [btc_live.orders] INFO:     Trap (821834559289644693906476077245...): $0.2100
+2026-07-06 13:58:57 [btc_live.orders] INFO:     Sum: $1.0100 (should be ~$1.00)
+2026-07-06 13:58:57 [btc_live.orders] INFO:   Order Calculation:
+2026-07-06 13:58:57 [btc_live.orders] INFO:     Main: $1.80 / $0.8000 = 5 contracts
+2026-07-06 13:58:57 [btc_live.orders] INFO:     Trap: $0.20 / $0.2100 = 5 contracts
+2026-07-06 13:58:57 [btc_live.orders] INFO:   Executing both orders simultaneously...
+2026-07-06 13:58:57 [btc_live.orders] INFO: --------------------------------------------------
+2026-07-06 13:58:57 [btc_live.orders] INFO: PLACING ORDER
+2026-07-06 13:58:57 [btc_live.orders] INFO:   Token: 701403575576052212125902024228...
+2026-07-06 13:58:57 [btc_live.orders] INFO:   Side: BUY
+2026-07-06 13:58:57 [btc_live.orders] INFO:   Price: 0.8000
+2026-07-06 13:58:57 [btc_live.orders] INFO:   Size: 5 contracts
+2026-07-06 13:58:57 [btc_live.orders] INFO:   Value: $4.00
+2026-07-06 13:58:57 [btc_live.orders] INFO:   Type: FAK (Fill-And-Kill)
+2026-07-06 13:58:57 [btc_live.orders] INFO: --------------------------------------------------
+2026-07-06 13:58:57 [btc_live.orders] INFO: PLACING ORDER
+2026-07-06 13:58:57 [btc_live.orders] INFO:   Token: 821834559289644693906476077245...
+2026-07-06 13:58:57 [btc_live.orders] INFO:   Side: BUY
+2026-07-06 13:58:57 [btc_live.orders] INFO:   Price: 0.2100
+2026-07-06 13:58:57 [btc_live.orders] INFO:   Size: 5 contracts
+2026-07-06 13:58:57 [btc_live.orders] INFO:   Value: $1.05
+2026-07-06 13:58:57 [btc_live.orders] INFO:   Type: FAK (Fill-And-Kill)
+2026-07-06 13:58:57 [btc_live.orders] DEBUG:   Order signed in 15ms
+2026-07-06 13:58:57 [btc_live.orders] DEBUG:   Order signed in 21ms
+2026-07-06 13:58:58 [httpx] INFO: HTTP Request: POST https://clob.polymarket.com/order "HTTP/2 400 Bad Request"
+2026-07-06 13:58:58 [httpx] INFO: HTTP Request: POST https://clob.polymarket.com/order "HTTP/2 400 Bad Request"
+2026-07-06 13:58:58 [btc_live.executor] ERROR: Order placement error: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:58 [btc_live.orders] ERROR: ORDER FAILED: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:58 [btc_live.orders] ERROR:   Elapsed: 272ms
+2026-07-06 13:58:58 [btc_live.orders] INFO: --------------------------------------------------
+2026-07-06 13:58:58 [btc_live.executor] ERROR: Order placement error: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:58 [btc_live.orders] ERROR: ORDER FAILED: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:58 [btc_live.orders] ERROR:   Elapsed: 274ms
+2026-07-06 13:58:58 [btc_live.orders] INFO: --------------------------------------------------
+2026-07-06 13:58:58 [btc_live.orders] INFO: --------------------------------------------------
+2026-07-06 13:58:58 [btc_live.orders] INFO: DUAL POSITION RESULTS:
+2026-07-06 13:58:58 [btc_live.orders] INFO:   Total Spent: $0.00
+2026-07-06 13:58:58 [btc_live.orders] INFO: ============================================================
+2026-07-06 13:58:58 [btc_live.executor] WARNING: Dual position failed: Main order did not fill
+2026-07-06 13:58:58 [btc_live.signals] ERROR: MAIN ENTRY FAILED: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:58 [btc_live] ERROR: Main entry failed: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:58 [btc_live.signals] ERROR: TRAP ENTRY FAILED: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:58 [btc_live] ERROR: Trap entry failed: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:59 [btc_live.signals] INFO: ============================================================
+2026-07-06 13:58:59 [btc_live.signals] INFO: TRADE SIGNAL TRIGGERED
+2026-07-06 13:58:59 [btc_live.signals] INFO:   Time: 2026-07-06T13:58:59.194199
+2026-07-06 13:58:59 [btc_live.signals] INFO:   Market: btc-updown-5m-1783320900
+2026-07-06 13:58:59 [btc_live.signals] INFO:   Signal: BUY_UP
+2026-07-06 13:58:59 [btc_live.signals] INFO:   Token: UP
+2026-07-06 13:58:59 [btc_live.signals] INFO:   Elapsed: 239s | Remaining: 61s | Bin: 2
+2026-07-06 13:58:59 [btc_live.signals] INFO:   --- UP ---
+2026-07-06 13:58:59 [btc_live.signals] INFO:     Price:   LAST=0.8100  BID=0.8000  ASK=0.8100
+2026-07-06 13:58:59 [btc_live.signals] INFO:     VWAP 60s: 0.6460  |  Deviation: +25.38%
+2026-07-06 13:58:59 [btc_live.signals] INFO:     Z-Score 5s: +2.02  |  Momentum 90s: +42.61%
+2026-07-06 13:58:59 [btc_live.signals] INFO:     Trades: 771  |  Volume: 19077
+2026-07-06 13:58:59 [btc_live.signals] INFO:     Buy Vol: 17786  |  Sell Vol: 1292
+2026-07-06 13:58:59 [btc_live.signals] INFO:   --- DOWN ---
+2026-07-06 13:58:59 [btc_live.signals] INFO:     Price:   LAST=0.2000  BID=0.1900  ASK=0.2000
+2026-07-06 13:58:59 [btc_live.signals] INFO:     VWAP 60s: 0.3498  |  Deviation: -42.83%
+2026-07-06 13:58:59 [btc_live.signals] INFO:     Z-Score 5s: -1.04  |  Momentum 90s: -54.55%
+2026-07-06 13:58:59 [btc_live.signals] INFO:     Trades: 683  |  Volume: 19356
+2026-07-06 13:58:59 [btc_live.signals] INFO:     Buy Vol: 18003  |  Sell Vol: 1353
+2026-07-06 13:58:59 [btc_live.signals] INFO:   Win Rate: 0.8%
+2026-07-06 13:58:59 [btc_live.signals] INFO:   Config: min_price=0.6, max_price=0.9, min_elapsed=60s, dev_range=0.1%-100%, no_entry_cutoff=30s
+2026-07-06 13:58:59 [btc_live.signals] INFO:   BTC Chainlink: $62,932.98 (anchor: $62,922.00)
+2026-07-06 13:58:59 [btc_live.signals] INFO:   BTC Deviation: $+10.98 (+0.0175%)
+2026-07-06 13:58:59 [btc_live.signals] INFO: ============================================================
+2026-07-06 13:58:59 [btc_live] INFO: Executing entry: UP
+2026-07-06 13:58:59 [btc_live.orders] INFO: ============================================================
+2026-07-06 13:58:59 [btc_live.orders] INFO: DUAL POSITION STRATEGY (Trap Play)
+2026-07-06 13:58:59 [btc_live.orders] INFO:   Total Budget: $2.00
+2026-07-06 13:58:59 [btc_live.orders] INFO:   Main Allocation: 90% = $1.80
+2026-07-06 13:58:59 [btc_live.orders] INFO:   Trap Allocation: 10% = $0.20
+2026-07-06 13:58:59 [btc_live.orders] INFO: ============================================================
+2026-07-06 13:58:59 [btc_live.orders] INFO:   Market Prices:
+2026-07-06 13:58:59 [btc_live.orders] INFO:     Main (701403575576052212125902024228...): $0.8100
+2026-07-06 13:58:59 [btc_live.orders] INFO:     Trap (821834559289644693906476077245...): $0.2000
+2026-07-06 13:58:59 [btc_live.orders] INFO:     Sum: $1.0100 (should be ~$1.00)
+2026-07-06 13:58:59 [btc_live.orders] INFO:   Order Calculation:
+2026-07-06 13:58:59 [btc_live.orders] INFO:     Main: $1.80 / $0.8100 = 5 contracts
+2026-07-06 13:58:59 [btc_live.orders] INFO:     Trap: $0.20 / $0.2000 = 5 contracts
+2026-07-06 13:58:59 [btc_live.orders] INFO:   Executing both orders simultaneously...
+2026-07-06 13:58:59 [btc_live.orders] INFO: --------------------------------------------------
+2026-07-06 13:58:59 [btc_live.orders] INFO: PLACING ORDER
+2026-07-06 13:58:59 [btc_live.orders] INFO:   Token: 701403575576052212125902024228...
+2026-07-06 13:58:59 [btc_live.orders] INFO:   Side: BUY
+2026-07-06 13:58:59 [btc_live.orders] INFO:   Price: 0.8100
+2026-07-06 13:58:59 [btc_live.orders] INFO:   Size: 5 contracts
+2026-07-06 13:58:59 [btc_live.orders] INFO:   Value: $4.05
+2026-07-06 13:58:59 [btc_live.orders] INFO:   Type: FAK (Fill-And-Kill)
+2026-07-06 13:58:59 [btc_live.orders] INFO: --------------------------------------------------
+2026-07-06 13:58:59 [btc_live.orders] INFO: PLACING ORDER
+2026-07-06 13:58:59 [btc_live.orders] INFO:   Token: 821834559289644693906476077245...
+2026-07-06 13:58:59 [btc_live.orders] INFO:   Side: BUY
+2026-07-06 13:58:59 [btc_live.orders] INFO:   Price: 0.2000
+2026-07-06 13:58:59 [btc_live.orders] INFO:   Size: 5 contracts
+2026-07-06 13:58:59 [btc_live.orders] INFO:   Value: $1.00
+2026-07-06 13:58:59 [btc_live.orders] INFO:   Type: FAK (Fill-And-Kill)
+2026-07-06 13:58:59 [btc_live.orders] DEBUG:   Order signed in 16ms
+2026-07-06 13:58:59 [btc_live.orders] DEBUG:   Order signed in 18ms
+2026-07-06 13:58:59 [httpx] INFO: HTTP Request: POST https://clob.polymarket.com/order "HTTP/2 400 Bad Request"
+2026-07-06 13:58:59 [httpx] INFO: HTTP Request: POST https://clob.polymarket.com/order "HTTP/2 400 Bad Request"
+2026-07-06 13:58:59 [btc_live.executor] ERROR: Order placement error: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:59 [btc_live.orders] ERROR: ORDER FAILED: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:59 [btc_live.orders] ERROR:   Elapsed: 245ms
+2026-07-06 13:58:59 [btc_live.orders] INFO: --------------------------------------------------
+2026-07-06 13:58:59 [btc_live.executor] ERROR: Order placement error: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:59 [btc_live.orders] ERROR: ORDER FAILED: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:59 [btc_live.orders] ERROR:   Elapsed: 251ms
+2026-07-06 13:58:59 [btc_live.orders] INFO: --------------------------------------------------
+2026-07-06 13:58:59 [btc_live.orders] INFO: --------------------------------------------------
+2026-07-06 13:58:59 [btc_live.orders] INFO: DUAL POSITION RESULTS:
+2026-07-06 13:59:00 [btc_live.orders] INFO:   Total Spent: $0.00
+2026-07-06 13:59:00 [btc_live.orders] INFO: ============================================================
+2026-07-06 13:59:00 [btc_live.executor] WARNING: Dual position failed: Main order did not fill
+2026-07-06 13:59:00 [btc_live.signals] ERROR: MAIN ENTRY FAILED: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:59:00 [btc_live] ERROR: Main entry failed: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:59:00 [btc_live.signals] ERROR: TRAP ENTRY FAILED: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:59:00 [btc_live] ERROR: Trap entry failed: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]

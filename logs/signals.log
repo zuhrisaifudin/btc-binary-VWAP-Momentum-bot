@@ -15525,3 +15525,283 @@
 2026-07-06 13:58:50   BTC Deviation: $+9.89 (+0.0157%)
 2026-07-06 13:58:50 ============================================================
 2026-07-06 13:58:50 MAIN ENTRY FAILED: Could not get price
+2026-07-06 13:58:51 ============================================================
+2026-07-06 13:58:51 TRADE SIGNAL TRIGGERED
+2026-07-06 13:58:51   Time: 2026-07-06T13:58:51.158571
+2026-07-06 13:58:51   Market: btc-updown-5m-1783320900
+2026-07-06 13:58:51   Signal: BUY_UP
+2026-07-06 13:58:51   Token: UP
+2026-07-06 13:58:51   Elapsed: 231s | Remaining: 69s | Bin: 2
+2026-07-06 13:58:51   --- UP ---
+2026-07-06 13:58:51     Price:   LAST=0.7400  BID=0.7300  ASK=0.7400
+2026-07-06 13:58:51     VWAP 60s: 0.6280  |  Deviation: +17.84%
+2026-07-06 13:58:51     Z-Score 5s: +1.10  |  Momentum 90s: +25.42%
+2026-07-06 13:58:51     Trades: 735  |  Volume: 18359
+2026-07-06 13:58:51     Buy Vol: 17148  |  Sell Vol: 1211
+2026-07-06 13:58:51   --- DOWN ---
+2026-07-06 13:58:51     Price:   LAST=0.2800  BID=0.2600  ASK=0.2700
+2026-07-06 13:58:51     VWAP 60s: 0.3695  |  Deviation: -24.22%
+2026-07-06 13:58:51     Z-Score 5s: -0.55  |  Momentum 90s: -32.93%
+2026-07-06 13:58:51     Trades: 661  |  Volume: 18798
+2026-07-06 13:58:51     Buy Vol: 17495  |  Sell Vol: 1303
+2026-07-06 13:58:51   Win Rate: 0.7%
+2026-07-06 13:58:51   Config: min_price=0.6, max_price=0.9, min_elapsed=60s, dev_range=0.1%-100%, no_entry_cutoff=30s
+2026-07-06 13:58:51   BTC Chainlink: $62,931.89 (anchor: $62,922.00)
+2026-07-06 13:58:51   BTC Deviation: $+9.89 (+0.0157%)
+2026-07-06 13:58:51 ============================================================
+2026-07-06 13:58:51 MAIN ENTRY FAILED: Could not get price
+2026-07-06 13:58:51 ============================================================
+2026-07-06 13:58:51 TRADE SIGNAL TRIGGERED
+2026-07-06 13:58:51   Time: 2026-07-06T13:58:51.411028
+2026-07-06 13:58:51   Market: btc-updown-5m-1783320900
+2026-07-06 13:58:51   Signal: BUY_UP
+2026-07-06 13:58:51   Token: UP
+2026-07-06 13:58:51   Elapsed: 231s | Remaining: 69s | Bin: 2
+2026-07-06 13:58:51   --- UP ---
+2026-07-06 13:58:51     Price:   LAST=0.7400  BID=0.7300  ASK=0.7400
+2026-07-06 13:58:51     VWAP 60s: 0.6280  |  Deviation: +17.84%
+2026-07-06 13:58:51     Z-Score 5s: +1.10  |  Momentum 90s: +25.42%
+2026-07-06 13:58:51     Trades: 735  |  Volume: 18359
+2026-07-06 13:58:51     Buy Vol: 17148  |  Sell Vol: 1211
+2026-07-06 13:58:51   --- DOWN ---
+2026-07-06 13:58:51     Price:   LAST=0.2700  BID=0.2600  ASK=0.2700
+2026-07-06 13:58:51     VWAP 60s: 0.3693  |  Deviation: -26.90%
+2026-07-06 13:58:51     Z-Score 5s: -2.46  |  Momentum 90s: -35.33%
+2026-07-06 13:58:51     Trades: 662  |  Volume: 18803
+2026-07-06 13:58:51     Buy Vol: 17500  |  Sell Vol: 1303
+2026-07-06 13:58:51   Win Rate: 0.7%
+2026-07-06 13:58:51   Config: min_price=0.6, max_price=0.9, min_elapsed=60s, dev_range=0.1%-100%, no_entry_cutoff=30s
+2026-07-06 13:58:51   BTC Chainlink: $62,931.89 (anchor: $62,922.00)
+2026-07-06 13:58:51   BTC Deviation: $+9.89 (+0.0157%)
+2026-07-06 13:58:51 ============================================================
+2026-07-06 13:58:51 MAIN ENTRY FAILED: Could not get price
+2026-07-06 13:58:51 ============================================================
+2026-07-06 13:58:51 TRADE SIGNAL TRIGGERED
+2026-07-06 13:58:51   Time: 2026-07-06T13:58:51.676605
+2026-07-06 13:58:51   Market: btc-updown-5m-1783320900
+2026-07-06 13:58:51   Signal: BUY_UP
+2026-07-06 13:58:51   Token: UP
+2026-07-06 13:58:51   Elapsed: 232s | Remaining: 68s | Bin: 2
+2026-07-06 13:58:51   --- UP ---
+2026-07-06 13:58:51     Price:   LAST=0.7400  BID=0.7300  ASK=0.7400
+2026-07-06 13:58:51     VWAP 60s: 0.6280  |  Deviation: +17.83%
+2026-07-06 13:58:51     Z-Score 5s: +1.05  |  Momentum 90s: +25.42%
+2026-07-06 13:58:51     Trades: 736  |  Volume: 18362
+2026-07-06 13:58:51     Buy Vol: 17151  |  Sell Vol: 1211
+2026-07-06 13:58:51   --- DOWN ---
+2026-07-06 13:58:51     Price:   LAST=0.2700  BID=0.2600  ASK=0.2700
+2026-07-06 13:58:51     VWAP 60s: 0.3692  |  Deviation: -26.86%
+2026-07-06 13:58:51     Z-Score 5s: -2.02  |  Momentum 90s: -35.33%
+2026-07-06 13:58:51     Trades: 663  |  Volume: 18810
+2026-07-06 13:58:51     Buy Vol: 17507  |  Sell Vol: 1303
+2026-07-06 13:58:51   Win Rate: 0.7%
+2026-07-06 13:58:51   Config: min_price=0.6, max_price=0.9, min_elapsed=60s, dev_range=0.1%-100%, no_entry_cutoff=30s
+2026-07-06 13:58:51   BTC Chainlink: $62,931.89 (anchor: $62,922.00)
+2026-07-06 13:58:51   BTC Deviation: $+9.89 (+0.0157%)
+2026-07-06 13:58:51 ============================================================
+2026-07-06 13:58:51 MAIN ENTRY FAILED: Could not get price
+2026-07-06 13:58:51 ============================================================
+2026-07-06 13:58:51 TRADE SIGNAL TRIGGERED
+2026-07-06 13:58:51   Time: 2026-07-06T13:58:51.938186
+2026-07-06 13:58:51   Market: btc-updown-5m-1783320900
+2026-07-06 13:58:51   Signal: BUY_UP
+2026-07-06 13:58:51   Token: UP
+2026-07-06 13:58:51   Elapsed: 232s | Remaining: 68s | Bin: 2
+2026-07-06 13:58:51   --- UP ---
+2026-07-06 13:58:51     Price:   LAST=0.7400  BID=0.7300  ASK=0.7400
+2026-07-06 13:58:51     VWAP 60s: 0.6280  |  Deviation: +17.83%
+2026-07-06 13:58:51     Z-Score 5s: +1.25  |  Momentum 90s: +25.42%
+2026-07-06 13:58:51     Trades: 736  |  Volume: 18362
+2026-07-06 13:58:51     Buy Vol: 17151  |  Sell Vol: 1211
+2026-07-06 13:58:51   --- DOWN ---
+2026-07-06 13:58:51     Price:   LAST=0.2700  BID=0.2600  ASK=0.2700
+2026-07-06 13:58:51     VWAP 60s: 0.3688  |  Deviation: -26.80%
+2026-07-06 13:58:51     Z-Score 5s: -2.02  |  Momentum 90s: -35.33%
+2026-07-06 13:58:51     Trades: 663  |  Volume: 18810
+2026-07-06 13:58:51     Buy Vol: 17507  |  Sell Vol: 1303
+2026-07-06 13:58:51   Win Rate: 0.7%
+2026-07-06 13:58:51   Config: min_price=0.6, max_price=0.9, min_elapsed=60s, dev_range=0.1%-100%, no_entry_cutoff=30s
+2026-07-06 13:58:51   BTC Chainlink: $62,931.89 (anchor: $62,922.00)
+2026-07-06 13:58:51   BTC Deviation: $+9.89 (+0.0157%)
+2026-07-06 13:58:51 ============================================================
+2026-07-06 13:58:51 MAIN ENTRY FAILED: Could not get price
+2026-07-06 13:58:52 ============================================================
+2026-07-06 13:58:52 TRADE SIGNAL TRIGGERED
+2026-07-06 13:58:52   Time: 2026-07-06T13:58:52.193539
+2026-07-06 13:58:52   Market: btc-updown-5m-1783320900
+2026-07-06 13:58:52   Signal: BUY_UP
+2026-07-06 13:58:52   Token: UP
+2026-07-06 13:58:52   Elapsed: 232s | Remaining: 68s | Bin: 2
+2026-07-06 13:58:52   --- UP ---
+2026-07-06 13:58:52     Price:   LAST=0.7300  BID=0.7300  ASK=0.7400
+2026-07-06 13:58:52     VWAP 60s: 0.6282  |  Deviation: +16.21%
+2026-07-06 13:58:52     Z-Score 5s: +0.00  |  Momentum 90s: +23.73%
+2026-07-06 13:58:52     Trades: 737  |  Volume: 18367
+2026-07-06 13:58:52     Buy Vol: 17151  |  Sell Vol: 1216
+2026-07-06 13:58:52   --- DOWN ---
+2026-07-06 13:58:52     Price:   LAST=0.2700  BID=0.2600  ASK=0.2700
+2026-07-06 13:58:52     VWAP 60s: 0.3686  |  Deviation: -26.75%
+2026-07-06 13:58:52     Z-Score 5s: -1.93  |  Momentum 90s: -35.33%
+2026-07-06 13:58:52     Trades: 663  |  Volume: 18810
+2026-07-06 13:58:52     Buy Vol: 17507  |  Sell Vol: 1303
+2026-07-06 13:58:52   Win Rate: 0.7%
+2026-07-06 13:58:52   Config: min_price=0.6, max_price=0.9, min_elapsed=60s, dev_range=0.1%-100%, no_entry_cutoff=30s
+2026-07-06 13:58:52   BTC Chainlink: $62,931.89 (anchor: $62,922.00)
+2026-07-06 13:58:52   BTC Deviation: $+9.89 (+0.0157%)
+2026-07-06 13:58:52 ============================================================
+2026-07-06 13:58:52 MAIN ENTRY FAILED: Could not get price
+2026-07-06 13:58:52 ============================================================
+2026-07-06 13:58:52 TRADE SIGNAL TRIGGERED
+2026-07-06 13:58:52   Time: 2026-07-06T13:58:52.447558
+2026-07-06 13:58:52   Market: btc-updown-5m-1783320900
+2026-07-06 13:58:52   Signal: BUY_UP
+2026-07-06 13:58:52   Token: UP
+2026-07-06 13:58:52   Elapsed: 232s | Remaining: 68s | Bin: 2
+2026-07-06 13:58:52   --- UP ---
+2026-07-06 13:58:52     Price:   LAST=0.7300  BID=0.7300  ASK=0.7400
+2026-07-06 13:58:52     VWAP 60s: 0.6284  |  Deviation: +16.16%
+2026-07-06 13:58:52     Z-Score 5s: -0.15  |  Momentum 90s: +23.73%
+2026-07-06 13:58:52     Trades: 738  |  Volume: 18382
+2026-07-06 13:58:52     Buy Vol: 17151  |  Sell Vol: 1231
+2026-07-06 13:58:52   --- DOWN ---
+2026-07-06 13:58:52     Price:   LAST=0.2700  BID=0.2600  ASK=0.2700
+2026-07-06 13:58:52     VWAP 60s: 0.3684  |  Deviation: -26.71%
+2026-07-06 13:58:52     Z-Score 5s: -1.44  |  Momentum 90s: -35.41%
+2026-07-06 13:58:52     Trades: 665  |  Volume: 18820
+2026-07-06 13:58:52     Buy Vol: 17517  |  Sell Vol: 1303
+2026-07-06 13:58:52   Win Rate: 0.7%
+2026-07-06 13:58:52   Config: min_price=0.6, max_price=0.9, min_elapsed=60s, dev_range=0.1%-100%, no_entry_cutoff=30s
+2026-07-06 13:58:52   BTC Chainlink: $62,931.91 (anchor: $62,922.00)
+2026-07-06 13:58:52   BTC Deviation: $+9.91 (+0.0157%)
+2026-07-06 13:58:52 ============================================================
+2026-07-06 13:58:52 MAIN ENTRY FAILED: Could not get price
+2026-07-06 13:58:52 ============================================================
+2026-07-06 13:58:52 TRADE SIGNAL TRIGGERED
+2026-07-06 13:58:52   Time: 2026-07-06T13:58:52.701297
+2026-07-06 13:58:52   Market: btc-updown-5m-1783320900
+2026-07-06 13:58:52   Signal: BUY_UP
+2026-07-06 13:58:52   Token: UP
+2026-07-06 13:58:52   Elapsed: 233s | Remaining: 67s | Bin: 2
+2026-07-06 13:58:52   --- UP ---
+2026-07-06 13:58:52     Price:   LAST=0.7900  BID=0.7800  ASK=0.7900
+2026-07-06 13:58:52     VWAP 60s: 0.6330  |  Deviation: +24.81%
+2026-07-06 13:58:52     Z-Score 5s: +2.52  |  Momentum 90s: +33.90%
+2026-07-06 13:58:52     Trades: 742  |  Volume: 18581
+2026-07-06 13:58:52     Buy Vol: 17348  |  Sell Vol: 1233
+2026-07-06 13:58:52   --- DOWN ---
+2026-07-06 13:58:52     Price:   LAST=0.2600  BID=0.2100  ASK=0.2200
+2026-07-06 13:58:52     VWAP 60s: 0.3679  |  Deviation: -29.33%
+2026-07-06 13:58:52     Z-Score 5s: -2.21  |  Momentum 90s: -37.60%
+2026-07-06 13:58:52     Trades: 666  |  Volume: 18843
+2026-07-06 13:58:52     Buy Vol: 17517  |  Sell Vol: 1326
+2026-07-06 13:58:52   Win Rate: 0.8%
+2026-07-06 13:58:52   Config: min_price=0.6, max_price=0.9, min_elapsed=60s, dev_range=0.1%-100%, no_entry_cutoff=30s
+2026-07-06 13:58:52   BTC Chainlink: $62,931.91 (anchor: $62,922.00)
+2026-07-06 13:58:52   BTC Deviation: $+9.91 (+0.0157%)
+2026-07-06 13:58:52 ============================================================
+2026-07-06 13:58:54 MAIN ENTRY FAILED: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:54 TRAP ENTRY FAILED: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:55 ============================================================
+2026-07-06 13:58:55 TRADE SIGNAL TRIGGERED
+2026-07-06 13:58:55   Time: 2026-07-06T13:58:55.229052
+2026-07-06 13:58:55   Market: btc-updown-5m-1783320900
+2026-07-06 13:58:55   Signal: BUY_UP
+2026-07-06 13:58:55   Token: UP
+2026-07-06 13:58:55   Elapsed: 235s | Remaining: 65s | Bin: 2
+2026-07-06 13:58:55   --- UP ---
+2026-07-06 13:58:55     Price:   LAST=0.7900  BID=0.7900  ASK=0.8000
+2026-07-06 13:58:55     VWAP 60s: 0.6402  |  Deviation: +23.41%
+2026-07-06 13:58:55     Z-Score 5s: +0.76  |  Momentum 90s: +35.62%
+2026-07-06 13:58:55     Trades: 758  |  Volume: 18870
+2026-07-06 13:58:55     Buy Vol: 17612  |  Sell Vol: 1259
+2026-07-06 13:58:55   --- DOWN ---
+2026-07-06 13:58:55     Price:   LAST=0.2200  BID=0.2000  ASK=0.2100
+2026-07-06 13:58:55     VWAP 60s: 0.3626  |  Deviation: -39.33%
+2026-07-06 13:58:55     Z-Score 5s: -0.73  |  Momentum 90s: -47.31%
+2026-07-06 13:58:55     Trades: 674  |  Volume: 18990
+2026-07-06 13:58:55     Buy Vol: 17648  |  Sell Vol: 1342
+2026-07-06 13:58:55   Win Rate: 0.8%
+2026-07-06 13:58:55   Config: min_price=0.6, max_price=0.9, min_elapsed=60s, dev_range=0.1%-100%, no_entry_cutoff=30s
+2026-07-06 13:58:55   BTC Chainlink: $62,931.93 (anchor: $62,922.00)
+2026-07-06 13:58:55   BTC Deviation: $+9.93 (+0.0158%)
+2026-07-06 13:58:55 ============================================================
+2026-07-06 13:58:56 MAIN ENTRY FAILED: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:56 TRAP ENTRY FAILED: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:56 ============================================================
+2026-07-06 13:58:56 TRADE SIGNAL TRIGGERED
+2026-07-06 13:58:56   Time: 2026-07-06T13:58:56.586105
+2026-07-06 13:58:56   Market: btc-updown-5m-1783320900
+2026-07-06 13:58:56   Signal: BUY_UP
+2026-07-06 13:58:56   Token: UP
+2026-07-06 13:58:56   Elapsed: 237s | Remaining: 63s | Bin: 2
+2026-07-06 13:58:56   --- UP ---
+2026-07-06 13:58:56     Price:   LAST=0.8000  BID=0.7900  ASK=0.8000
+2026-07-06 13:58:56     VWAP 60s: 0.6417  |  Deviation: +24.67%
+2026-07-06 13:58:56     Z-Score 5s: +0.79  |  Momentum 90s: +37.63%
+2026-07-06 13:58:56     Trades: 763  |  Volume: 18911
+2026-07-06 13:58:56     Buy Vol: 17653  |  Sell Vol: 1259
+2026-07-06 13:58:56   --- DOWN ---
+2026-07-06 13:58:56     Price:   LAST=0.2200  BID=0.2000  ASK=0.2100
+2026-07-06 13:58:56     VWAP 60s: 0.3618  |  Deviation: -39.19%
+2026-07-06 13:58:56     Z-Score 5s: -0.57  |  Momentum 90s: -47.87%
+2026-07-06 13:58:56     Trades: 674  |  Volume: 18990
+2026-07-06 13:58:56     Buy Vol: 17648  |  Sell Vol: 1342
+2026-07-06 13:58:56   Win Rate: 0.8%
+2026-07-06 13:58:56   Config: min_price=0.6, max_price=0.9, min_elapsed=60s, dev_range=0.1%-100%, no_entry_cutoff=30s
+2026-07-06 13:58:56   BTC Chainlink: $62,932.92 (anchor: $62,922.00)
+2026-07-06 13:58:56   BTC Deviation: $+10.92 (+0.0173%)
+2026-07-06 13:58:56 ============================================================
+2026-07-06 13:58:57 MAIN ENTRY FAILED: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:57 TRAP ENTRY FAILED: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:57 ============================================================
+2026-07-06 13:58:57 TRADE SIGNAL TRIGGERED
+2026-07-06 13:58:57   Time: 2026-07-06T13:58:57.847493
+2026-07-06 13:58:57   Market: btc-updown-5m-1783320900
+2026-07-06 13:58:57   Signal: BUY_UP
+2026-07-06 13:58:57   Token: UP
+2026-07-06 13:58:57   Elapsed: 238s | Remaining: 62s | Bin: 2
+2026-07-06 13:58:57   --- UP ---
+2026-07-06 13:58:57     Price:   LAST=0.7900  BID=0.7900  ASK=0.8000
+2026-07-06 13:58:57     VWAP 60s: 0.6428  |  Deviation: +22.89%
+2026-07-06 13:58:57     Z-Score 5s: -0.43  |  Momentum 90s: +37.50%
+2026-07-06 13:58:57     Trades: 766  |  Volume: 18946
+2026-07-06 13:58:57     Buy Vol: 17655  |  Sell Vol: 1292
+2026-07-06 13:58:57   --- DOWN ---
+2026-07-06 13:58:57     Price:   LAST=0.2100  BID=0.2000  ASK=0.2100
+2026-07-06 13:58:57     VWAP 60s: 0.3607  |  Deviation: -41.78%
+2026-07-06 13:58:57     Z-Score 5s: -0.71  |  Momentum 90s: -51.54%
+2026-07-06 13:58:57     Trades: 676  |  Volume: 19010
+2026-07-06 13:58:57     Buy Vol: 17662  |  Sell Vol: 1348
+2026-07-06 13:58:57   Win Rate: 0.8%
+2026-07-06 13:58:57   Config: min_price=0.6, max_price=0.9, min_elapsed=60s, dev_range=0.1%-100%, no_entry_cutoff=30s
+2026-07-06 13:58:57   BTC Chainlink: $62,932.92 (anchor: $62,922.00)
+2026-07-06 13:58:57   BTC Deviation: $+10.92 (+0.0174%)
+2026-07-06 13:58:57 ============================================================
+2026-07-06 13:58:58 MAIN ENTRY FAILED: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:58 TRAP ENTRY FAILED: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:58:59 ============================================================
+2026-07-06 13:58:59 TRADE SIGNAL TRIGGERED
+2026-07-06 13:58:59   Time: 2026-07-06T13:58:59.194199
+2026-07-06 13:58:59   Market: btc-updown-5m-1783320900
+2026-07-06 13:58:59   Signal: BUY_UP
+2026-07-06 13:58:59   Token: UP
+2026-07-06 13:58:59   Elapsed: 239s | Remaining: 61s | Bin: 2
+2026-07-06 13:58:59   --- UP ---
+2026-07-06 13:58:59     Price:   LAST=0.8100  BID=0.8000  ASK=0.8100
+2026-07-06 13:58:59     VWAP 60s: 0.6460  |  Deviation: +25.38%
+2026-07-06 13:58:59     Z-Score 5s: +2.02  |  Momentum 90s: +42.61%
+2026-07-06 13:58:59     Trades: 771  |  Volume: 19077
+2026-07-06 13:58:59     Buy Vol: 17786  |  Sell Vol: 1292
+2026-07-06 13:58:59   --- DOWN ---
+2026-07-06 13:58:59     Price:   LAST=0.2000  BID=0.1900  ASK=0.2000
+2026-07-06 13:58:59     VWAP 60s: 0.3498  |  Deviation: -42.83%
+2026-07-06 13:58:59     Z-Score 5s: -1.04  |  Momentum 90s: -54.55%
+2026-07-06 13:58:59     Trades: 683  |  Volume: 19356
+2026-07-06 13:58:59     Buy Vol: 18003  |  Sell Vol: 1353
+2026-07-06 13:58:59   Win Rate: 0.8%
+2026-07-06 13:58:59   Config: min_price=0.6, max_price=0.9, min_elapsed=60s, dev_range=0.1%-100%, no_entry_cutoff=30s
+2026-07-06 13:58:59   BTC Chainlink: $62,932.98 (anchor: $62,922.00)
+2026-07-06 13:58:59   BTC Deviation: $+10.98 (+0.0175%)
+2026-07-06 13:58:59 ============================================================
+2026-07-06 13:59:00 MAIN ENTRY FAILED: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
+2026-07-06 13:59:00 TRAP ENTRY FAILED: PolyApiException[status_code=400, error_message={'error': 'invalid order version, please use the latest clob-client'}]
