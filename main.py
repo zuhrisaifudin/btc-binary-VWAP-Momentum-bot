@@ -2026,7 +2026,9 @@ class LiveTradingBot:
                 total_budget_usd=self.config.dual_position.total_budget_usd,
                 main_allocation_pct=self.config.dual_position.main_allocation_pct,
                 trap_allocation_pct=self.config.dual_position.trap_allocation_pct,
-                max_trap_price=self.config.dual_position.max_trap_price
+                max_trap_price=self.config.dual_position.max_trap_price,
+                main_websocket_price=token.best_ask,
+                trap_websocket_price=opposite_token.best_ask
             )
             
             # 1. MAIN POSITION
