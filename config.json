@@ -38,7 +38,7 @@
   },
   "regime_strategy": {
     "enabled": true,
-    "total_budget_usd": 2.00,
+    "total_budget_usd": 20.00,
     "hurst_threshold_trending": 0.55,
     "hurst_threshold_mean_revert": 0.45,
     "dominant_allocation_pct": 0.75,
