@@ -36,24 +36,18 @@
     "max_daily_trades": 20,
     "daily_stop_loss_usd": -5.0
   },
-  "hedge": {
-    "enabled": false,
-    "hedge_price": 0.02,
-    "hedge_contracts": 1,
-    "order_type": "GTD",
-    "max_retries": 3,
-    "retry_delay_ms": 300,
-    "hedge_only_if_profit": true,
-    "min_floating_profit_pct": 0.20
-  },
-  "dual_position": {
-    "_comment": "Trap Play Strategy: Buy both sides - main follows signal, trap profits from reversal",
+  "regime_strategy": {
     "enabled": true,
     "total_budget_usd": 2.00,
-    "main_allocation_pct": 0.90,
-    "trap_allocation_pct": 0.10,
-    "max_trap_price": 0.25,
-    "order_type": "FAK"
+    "hurst_threshold_trending": 0.55,
+    "hurst_threshold_mean_revert": 0.45,
+    "dominant_allocation_pct": 0.75,
+    "insurance_allocation_pct": 0.25,
+    "scaling_parts": 10,
+    "scaling_duration_sec": 120.0,
+    "max_consecutive_losses": 5,
+    "circuit_breaker_duration_min": 60,
+    "max_spread_usd": 0.05
   },
   "redeem": {
     "enabled": true,

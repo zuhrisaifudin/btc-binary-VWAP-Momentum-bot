@@ -84,18 +84,16 @@ class TestConfigValidation(unittest.TestCase):
 
     def test_load_config(self):
         """Test config loading."""
-        with patch('main.CONFIG_PATH', self.temp_file.name):
-            config = load_config()
-            self.assertIsNotNone(config)
-            self.assertEqual(config.market.interval_minutes, 5)
-            self.assertEqual(config.entry.bet_amount_usd, 0.50)
+        config = load_config(self.temp_file.name)
+        self.assertIsNotNone(config)
+        self.assertEqual(config.market.interval_minutes, 5)
+        self.assertEqual(config.entry.bet_amount_usd, 0.50)
 
     def test_validate_config_valid(self):
         """Test validation of valid config."""
-        with patch('main.CONFIG_PATH', self.temp_file.name):
-            config = load_config()
-            errors = validate_config(config)
-            self.assertEqual(len(errors), 0)
+        config = load_config(self.temp_file.name)
+        errors = validate_config(config)
+        self.assertEqual(len(errors), 0)
 
     def test_validate_config_invalid_allocation(self):
         """Test invalid allocation percentages."""
@@ -107,7 +105,7 @@ class TestConfigValidation(unittest.TestCase):
         with open(self.temp_file.name, 'w') as f:
             json.dump(invalid_config, f)
 
-        config = load_config()
+        config = load_config(self.temp_file.name)
         errors = validate_config(config)
         self.assertGreater(len(errors), 0)
         self.assertTrue(any("allocation" in err.lower() for err in errors))
@@ -122,7 +120,7 @@ class TestConfigValidation(unittest.TestCase):
         with open(self.temp_file.name, 'w') as f:
             json.dump(invalid_config, f)
 
-        config = load_config()
+        config = load_config(self.temp_file.name)
         errors = validate_config(config)
         self.assertGreater(len(errors), 0)
         self.assertTrue(any("time window" in err.lower() for err in errors))
@@ -136,7 +134,7 @@ class TestConfigValidation(unittest.TestCase):
         with open(self.temp_file.name, 'w') as f:
             json.dump(invalid_config, f)
 
-        config = load_config()
+        config = load_config(self.temp_file.name)
         errors = validate_config(config)
         self.assertGreater(len(errors), 0)
         self.assertTrue(any("trap" in err.lower() for err in errors))
@@ -150,7 +148,7 @@ class TestConfigValidation(unittest.TestCase):
         with open(self.temp_file.name, 'w') as f:
             json.dump(invalid_config, f)
 
-        config = load_config()
+        config = load_config(self.temp_file.name)
         errors = validate_config(config)
         self.assertGreater(len(errors), 0)
         self.assertTrue(any("bet_amount" in err.lower() for err in errors))
@@ -166,7 +164,7 @@ class TestConfigValidation(unittest.TestCase):
         with open(self.temp_file.name, 'w') as f:
             json.dump(invalid_config, f)
 
-        config = load_config()
+        config = load_config(self.temp_file.name)
         errors = validate_config(config)
         self.assertGreater(len(errors), 0)
         # Should have errors for all invalid values
@@ -183,11 +181,11 @@ class TestConfigValidation(unittest.TestCase):
         with open(self.temp_file.name, 'w') as f:
             json.dump(valid_config, f)
 
-        config = load_config()
+        config = load_config(self.temp_file.name)
         errors = validate_config(config)
         # Should have fewer requirements in simulation mode
         self.assertLessEqual(len(errors), 2)  # Maybe only path errors
 
 
 if __name__ == '__main__':
-    unittest.main()
+    unittest.main()

@@ -90,6 +90,22 @@ class DualPositionConfig:
 
 
 @dataclass
+class RegimeStrategyConfig:
+    """Regime strategy parameters."""
+    enabled: bool = False
+    total_budget_usd: float = 2.00
+    hurst_threshold_trending: float = 0.55
+    hurst_threshold_mean_revert: float = 0.45
+    dominant_allocation_pct: float = 0.75
+    insurance_allocation_pct: float = 0.25
+    scaling_parts: int = 10
+    scaling_duration_sec: float = 120.0
+    max_consecutive_losses: int = 5
+    circuit_breaker_duration_min: int = 60
+    max_spread_usd: float = 0.05
+
+
+@dataclass
 class RedeemConfig:
     """Auto-redeem parameters."""
     enabled: bool = True
@@ -156,6 +172,7 @@ class Config:
     telegram: TelegramConfig
     web_dashboard: WebDashboardConfig
     polymarket: PolymarketConfig
+    regime_strategy: RegimeStrategyConfig
 
 
 def load_config(config_path: Optional[str] = None) -> Config:
@@ -168,6 +185,12 @@ def load_config(config_path: Optional[str] = None) -> Config:
     Returns:
         Config object with all settings
     """
+    if config_path is None:
+        import sys
+        if "main" in sys.modules:
+            main_mod = sys.modules["main"]
+            if hasattr(main_mod, "CONFIG_PATH") and main_mod.CONFIG_PATH is not None:
+                config_path = main_mod.CONFIG_PATH
     if config_path is None:
         config_path = PROJECT_ROOT / "config.json"
     
@@ -210,7 +233,7 @@ def load_config(config_path: Optional[str] = None) -> Config:
     # Entry
     entry_data = data.get("entry", {})
     entry = EntryConfig(
-        bet_amount_usd=entry_data.get("bet_amount_usd", 0.50),
+        bet_amount_usd=entry_data.get("bet_amount_usd"),
         price_offset=entry_data.get("price_offset", 0.02),
         order_type=entry_data.get("order_type", "FAK"),
         max_retries=entry_data.get("max_retries", 3),
@@ -271,6 +294,22 @@ def load_config(config_path: Optional[str] = None) -> Config:
         order_type=dual_data.get("order_type", "FAK"),
     )
     
+    # Regime Strategy
+    regime_data = data.get("regime_strategy", {})
+    regime_strategy = RegimeStrategyConfig(
+        enabled=regime_data.get("enabled", False),
+        total_budget_usd=regime_data.get("total_budget_usd", 2.00),
+        hurst_threshold_trending=regime_data.get("hurst_threshold_trending", 0.55),
+        hurst_threshold_mean_revert=regime_data.get("hurst_threshold_mean_revert", 0.45),
+        dominant_allocation_pct=regime_data.get("dominant_allocation_pct", 0.75),
+        insurance_allocation_pct=regime_data.get("insurance_allocation_pct", 0.25),
+        scaling_parts=regime_data.get("scaling_parts", 10),
+        scaling_duration_sec=regime_data.get("scaling_duration_sec", 120.0),
+        max_consecutive_losses=regime_data.get("max_consecutive_losses", 5),
+        circuit_breaker_duration_min=regime_data.get("circuit_breaker_duration_min", 60),
+        max_spread_usd=regime_data.get("max_spread_usd", 0.05)
+    )
+    
     # Polymarket (from env only - secrets)
     polymarket = PolymarketConfig(
         private_key=os.getenv("PRIVATE_KEY", ""),
@@ -295,6 +334,7 @@ def load_config(config_path: Optional[str] = None) -> Config:
         telegram=telegram,
         web_dashboard=web_dashboard,
         polymarket=polymarket,
+        regime_strategy=regime_strategy,
     )
 
 
@@ -358,6 +398,34 @@ def validate_config(config: Config) -> list:
             f"max_deviation_pct ({config.strategy.max_deviation_pct}) "
             f"must be greater than min_deviation_pct ({config.strategy.min_deviation_pct})"
         )
+
+    if config.strategy.min_deviation_pct < 0:
+        errors.append("min_deviation_pct must be non-negative")
+
+    # Time window sum
+    if config.strategy.min_elapsed_sec + config.strategy.no_entry_before_end_sec >= dur:
+        errors.append(
+            f"Invalid time window: min_elapsed_sec ({config.strategy.min_elapsed_sec}s) + "
+            f"no_entry_before_end_sec ({config.strategy.no_entry_before_end_sec}s) must be less than "
+            f"market duration ({dur}s)"
+        )
+
+    # Bet amount and daily trades
+    if not hasattr(config.entry, 'bet_amount_usd') or config.entry.bet_amount_usd is None or config.entry.bet_amount_usd <= 0:
+        errors.append("bet_amount_usd must be greater than 0")
+
+    if config.entry.max_daily_trades <= 0:
+        errors.append("max_daily_trades must be greater than 0")
+
+    # Dual position allocation and trap price validation
+    if hasattr(config, 'dual_position') and config.dual_position:
+        if abs((config.dual_position.main_allocation_pct + config.dual_position.trap_allocation_pct) - 1.0) > 1e-6:
+            errors.append("Dual position allocation percentages must sum to 1.0")
+        if config.dual_position.max_trap_price > config.strategy.max_price:
+            errors.append(
+                f"max_trap_price ({config.dual_position.max_trap_price}) "
+                f"must not exceed strategy max_price ({config.strategy.max_price})"
+            )
 
     if config.web_dashboard.enabled:
         if not (1 <= config.web_dashboard.port <= 65535):

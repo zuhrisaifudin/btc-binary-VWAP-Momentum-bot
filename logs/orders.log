@@ -1,0 +1,94 @@
+2026-07-06 18:11:11 ============================================================
+2026-07-06 18:11:11 ============================================================
+2026-07-06 18:11:11 CLOB CLIENT INITIALIZATION
+2026-07-06 18:11:11 CLOB CLIENT INITIALIZATION
+2026-07-06 18:11:11   Host: https://clob.polymarket.com
+2026-07-06 18:11:11   Host: https://clob.polymarket.com
+2026-07-06 18:11:11   Chain ID: 137
+2026-07-06 18:11:11   Chain ID: 137
+2026-07-06 18:11:11   Signature Type: 1
+2026-07-06 18:11:11   Signature Type: 1
+2026-07-06 18:11:11   Funder Address: 0x371fb28383e8fb62afe7e024b01ad451b55828e5
+2026-07-06 18:11:11   Funder Address: 0x371fb28383e8fb62afe7e024b01ad451b55828e5
+2026-07-06 18:11:11   API Key: d4b86398...
+2026-07-06 18:11:11   API Key: d4b86398...
+2026-07-06 18:11:11 CLOB CLIENT INITIALIZED SUCCESSFULLY
+2026-07-06 18:11:11 CLOB CLIENT INITIALIZED SUCCESSFULLY
+2026-07-06 18:11:11 ============================================================
+2026-07-06 18:11:11 ============================================================
+2026-07-06 18:17:58 ============================================================
+2026-07-06 18:17:58 ============================================================
+2026-07-06 18:17:58 CLOB CLIENT INITIALIZATION
+2026-07-06 18:17:58 CLOB CLIENT INITIALIZATION
+2026-07-06 18:17:58   Host: https://clob.polymarket.com
+2026-07-06 18:17:58   Host: https://clob.polymarket.com
+2026-07-06 18:17:58   Chain ID: 137
+2026-07-06 18:17:58   Chain ID: 137
+2026-07-06 18:17:58   Signature Type: 1
+2026-07-06 18:17:58   Signature Type: 1
+2026-07-06 18:17:58   Funder Address: 0x371fb28383e8fb62afe7e024b01ad451b55828e5
+2026-07-06 18:17:58   Funder Address: 0x371fb28383e8fb62afe7e024b01ad451b55828e5
+2026-07-06 18:17:58   API Key: d4b86398...
+2026-07-06 18:17:58   API Key: d4b86398...
+2026-07-06 18:17:58 CLOB CLIENT INITIALIZED SUCCESSFULLY
+2026-07-06 18:17:58 CLOB CLIENT INITIALIZED SUCCESSFULLY
+2026-07-06 18:17:58 ============================================================
+2026-07-06 18:17:58 ============================================================
+2026-07-06 18:22:36 ORDERBOOK ASK: token=31870041004148965916... | best_ask=0.9900 | asks=25 | latency=288ms
+2026-07-06 18:22:36 ORDERBOOK ASK: token=31870041004148965916... | best_ask=0.9900 | asks=25 | latency=288ms
+2026-07-06 18:22:49 ORDERBOOK ASK: token=31870041004148965916... | best_ask=0.9900 | asks=18 | latency=279ms
+2026-07-06 18:22:49 ORDERBOOK ASK: token=31870041004148965916... | best_ask=0.9900 | asks=18 | latency=279ms
+2026-07-06 18:23:01 ORDERBOOK ASK: token=31870041004148965916... | best_ask=0.9900 | asks=61 | latency=268ms
+2026-07-06 18:23:01 ORDERBOOK ASK: token=31870041004148965916... | best_ask=0.9900 | asks=61 | latency=268ms
+2026-07-06 18:23:13 ORDERBOOK ASK: token=31870041004148965916... | best_ask=0.9900 | asks=67 | latency=269ms
+2026-07-06 18:23:13 ORDERBOOK ASK: token=31870041004148965916... | best_ask=0.9900 | asks=67 | latency=269ms
+2026-07-06 18:23:26 ORDERBOOK ASK: token=31870041004148965916... | best_ask=0.9900 | asks=70 | latency=260ms
+2026-07-06 18:23:26 ORDERBOOK ASK: token=31870041004148965916... | best_ask=0.9900 | asks=70 | latency=260ms
+2026-07-06 18:23:38 ORDERBOOK ASK: token=31870041004148965916... | best_ask=0.9900 | asks=76 | latency=262ms
+2026-07-06 18:23:38 ORDERBOOK ASK: token=31870041004148965916... | best_ask=0.9900 | asks=76 | latency=262ms
+2026-07-06 18:23:50 ORDERBOOK ASK: token=31870041004148965916... | best_ask=0.9900 | asks=98 | latency=240ms
+2026-07-06 18:23:50 ORDERBOOK ASK: token=31870041004148965916... | best_ask=0.9900 | asks=98 | latency=240ms
+2026-07-06 18:24:03 ORDERBOOK ASK: token=31870041004148965916... | best_ask=0.9900 | asks=98 | latency=294ms
+2026-07-06 18:24:03 ORDERBOOK ASK: token=31870041004148965916... | best_ask=0.9900 | asks=98 | latency=294ms
+2026-07-06 18:24:15 ORDERBOOK ASK: token=31870041004148965916... | best_ask=0.9900 | asks=99 | latency=274ms
+2026-07-06 18:24:15 ORDERBOOK ASK: token=31870041004148965916... | best_ask=0.9900 | asks=99 | latency=274ms
+2026-07-06 18:24:27 ORDERBOOK ASK: token=31870041004148965916... | best_ask=0.9900 | asks=99 | latency=275ms
+2026-07-06 18:24:27 ORDERBOOK ASK: token=31870041004148965916... | best_ask=0.9900 | asks=99 | latency=275ms
+2026-07-06 18:37:52 ORDERBOOK ASK: token=10812638213013734795... | best_ask=0.9900 | asks=25 | latency=333ms
+2026-07-06 18:37:52 ORDERBOOK ASK: token=10812638213013734795... | best_ask=0.9900 | asks=25 | latency=333ms
+2026-07-06 18:38:05 ORDERBOOK ASK: token=10812638213013734795... | best_ask=0.9900 | asks=15 | latency=238ms
+2026-07-06 18:38:05 ORDERBOOK ASK: token=10812638213013734795... | best_ask=0.9900 | asks=15 | latency=238ms
+2026-07-06 18:38:17 ORDERBOOK ASK: token=10812638213013734795... | best_ask=0.9900 | asks=7 | latency=265ms
+2026-07-06 18:38:17 ORDERBOOK ASK: token=10812638213013734795... | best_ask=0.9900 | asks=7 | latency=265ms
+2026-07-06 18:38:30 ORDERBOOK ASK: token=10812638213013734795... | best_ask=0.9900 | asks=3 | latency=274ms
+2026-07-06 18:38:30 ORDERBOOK ASK: token=10812638213013734795... | best_ask=0.9900 | asks=3 | latency=274ms
+2026-07-06 18:38:42 ORDERBOOK ASK: token=10812638213013734795... | best_ask=0.9900 | asks=1 | latency=281ms
+2026-07-06 18:38:42 ORDERBOOK ASK: token=10812638213013734795... | best_ask=0.9900 | asks=1 | latency=281ms
+2026-07-06 18:38:54 ORDERBOOK: No asks for token=10812638213013734795...
+2026-07-06 18:38:54 ORDERBOOK: No asks for token=10812638213013734795...
+2026-07-06 18:39:07 ORDERBOOK: No asks for token=10812638213013734795...
+2026-07-06 18:39:07 ORDERBOOK: No asks for token=10812638213013734795...
+2026-07-06 18:39:19 ORDERBOOK: No asks for token=10812638213013734795...
+2026-07-06 18:39:19 ORDERBOOK: No asks for token=10812638213013734795...
+2026-07-06 18:39:31 ORDERBOOK: No asks for token=10812638213013734795...
+2026-07-06 18:39:31 ORDERBOOK: No asks for token=10812638213013734795...
+2026-07-06 18:39:44 ORDERBOOK: No asks for token=10812638213013734795...
+2026-07-06 18:39:44 ORDERBOOK: No asks for token=10812638213013734795...
+2026-07-06 18:59:10 ============================================================
+2026-07-06 18:59:10 ============================================================
+2026-07-06 18:59:10 CLOB CLIENT INITIALIZATION
+2026-07-06 18:59:10 CLOB CLIENT INITIALIZATION
+2026-07-06 18:59:10   Host: https://clob.polymarket.com
+2026-07-06 18:59:10   Host: https://clob.polymarket.com
+2026-07-06 18:59:10   Chain ID: 137
+2026-07-06 18:59:10   Chain ID: 137
+2026-07-06 18:59:10   Signature Type: 1
+2026-07-06 18:59:10   Signature Type: 1
+2026-07-06 18:59:10   Funder Address: 0x371fb28383e8fb62afe7e024b01ad451b55828e5
+2026-07-06 18:59:10   Funder Address: 0x371fb28383e8fb62afe7e024b01ad451b55828e5
+2026-07-06 18:59:10   API Key: d4b86398...
+2026-07-06 18:59:10   API Key: d4b86398...
+2026-07-06 18:59:10 CLOB CLIENT INITIALIZED SUCCESSFULLY
+2026-07-06 18:59:10 CLOB CLIENT INITIALIZED SUCCESSFULLY
+2026-07-06 18:59:10 ============================================================
+2026-07-06 18:59:10 ============================================================

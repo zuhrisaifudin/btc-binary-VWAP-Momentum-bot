@@ -35,6 +35,14 @@ from rich.live import Live
 from rich.panel import Panel
 from rich.layout import Layout
 
+from src.regime_strategy import (
+    HurstExponentCalculator,
+    OrderFlowImbalanceCalculator,
+    RegimeDetector,
+    KellyCriterionCalculator,
+    ScalingExecutionEngine
+)
+
 # Setup logging
 Path("logs").mkdir(exist_ok=True)
 
@@ -49,33 +57,39 @@ logger = logging.getLogger("btc_live")
 
 # Detailed order execution logger
 order_logger = logging.getLogger("btc_live.orders")
-order_handler = logging.FileHandler('logs/orders.log')
-order_handler.setFormatter(logging.Formatter(
-    '%(asctime)s %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-))
-order_logger.addHandler(order_handler)
-order_logger.setLevel(logging.DEBUG)
+if not order_logger.handlers:
+    order_handler = logging.FileHandler('logs/orders.log')
+    order_handler.setFormatter(logging.Formatter(
+        '%(asctime)s %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    ))
+    order_logger.addHandler(order_handler)
+    order_logger.setLevel(logging.DEBUG)
 
 # Detailed hedge logger
 hedge_logger = logging.getLogger("btc_live.hedges")
-hedge_handler = logging.FileHandler('logs/hedges.log')
-hedge_handler.setFormatter(logging.Formatter(
-    '%(asctime)s %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-))
-hedge_logger.addHandler(hedge_handler)
-hedge_logger.setLevel(logging.DEBUG)
+if not hedge_logger.handlers:
+    hedge_handler = logging.FileHandler('logs/hedges.log')
+    hedge_handler.setFormatter(logging.Formatter(
+        '%(asctime)s %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    ))
+    hedge_logger.addHandler(hedge_handler)
+    hedge_logger.setLevel(logging.DEBUG)
 
 # Signals logger
 signal_logger = logging.getLogger("btc_live.signals")
-signal_handler = logging.FileHandler('logs/signals.log')
-signal_handler.setFormatter(logging.Formatter(
-    '%(asctime)s %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-))
-signal_logger.addHandler(signal_handler)
-signal_logger.setLevel(logging.DEBUG)
+if not signal_logger.handlers:
+    signal_handler = logging.FileHandler('logs/signals.log')
+    signal_handler.setFormatter(logging.Formatter(
+        '%(asctime)s %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    ))
+    signal_logger.addHandler(signal_handler)
+    signal_logger.setLevel(logging.DEBUG)
+
+# Configuration Path (patched during unit testing)
+CONFIG_PATH = "config.json"
 
 # Project imports
 from src.config_loader import load_config, validate_config
@@ -162,6 +176,14 @@ class MarketState:
     btc_current_price: float = 0.0   # Latest Chainlink price
     btc_last_update: float = 0.0     # Timestamp of last price update
     btc_connected: bool = False      # RTDS connection status
+
+    # Regime strategy fields
+    hurst: float = 0.5
+    ofi_ma: float = 0.0
+    regime: str = "NEUTRAL"
+    hurst_prices: deque = field(default_factory=lambda: deque(maxlen=900))
+    ofi_history: deque = field(default_factory=lambda: deque(maxlen=60))
+    ofi_calc: OrderFlowImbalanceCalculator = field(default_factory=OrderFlowImbalanceCalculator)
 
 
 @dataclass
@@ -339,6 +361,10 @@ class TradingStats:
         # from Chainlink (e.g. RTDS disconnected). Resolved later by the Gamma
         # resolution poller reading market.closed + outcomePrices.
         self.pending_resolutions: List[dict] = []
+        
+        # Circuit Breaker & Regime strategy tracking
+        self.consecutive_losses: int = 0
+        self.circuit_breaker_until: float = 0.0
 
         self._load()
         self._check_new_day()
@@ -350,6 +376,8 @@ class TradingStats:
                     data = json.load(f)
                     self.trades = [self._load_trade(t) for t in data.get('trades', [])]
                     self.markets_seen = data.get('markets_seen', 0)
+                    self.consecutive_losses = data.get('consecutive_losses', 0)
+                    self.circuit_breaker_until = data.get('circuit_breaker_until', 0.0)
                     # Restore unresolved pending positions across restarts
                     self.pending_resolutions = data.get('pending_resolutions', []) or []
         except Exception:
@@ -393,6 +421,8 @@ class TradingStats:
                 'trades': [t.__dict__ for t in self.trades],
                 'markets_seen': self.markets_seen,
                 'summary': self.summary_dict(),
+                'consecutive_losses': self.consecutive_losses,
+                'circuit_breaker_until': self.circuit_breaker_until,
             }
             with open(self.log_file, 'w') as f:
                 json.dump(data, f, indent=2)
@@ -795,6 +825,8 @@ class WebSocketClient:
                 
                 if price > 0 and size > 0:
                     token.last_price = price
+                    if self.state.up_token and token.token_id == self.state.up_token.token_id:
+                        self.state.hurst_prices.append(price)
                     token.last_trade_time = time.time()
                     token.trades.append(Trade(time.time(), price, size, side))
                     token.trade_count += 1
@@ -817,11 +849,18 @@ class WebSocketClient:
             token = self._get_token(data.get("asset_id"))
             if token:
                 bids = data.get("bids", [])
+                asks = data.get("asks", [])
+                
+                if self.state.up_token and token.token_id == self.state.up_token.token_id:
+                    ofi_val = self.state.ofi_calc.update_multi_level(bids, asks)
+                    self.state.ofi_history.append(ofi_val)
+                    if self.state.ofi_history:
+                        self.state.ofi_ma = sum(self.state.ofi_history) / len(self.state.ofi_history)
+                
                 if bids:
                     bids.sort(key=lambda x: float(x["price"]), reverse=True)
                     token.best_bid = float(bids[0]["price"])
                     token.best_bid_size = float(bids[0]["size"])
-                asks = data.get("asks", [])
                 if asks:
                     asks.sort(key=lambda x: float(x["price"]))
                     token.best_ask = float(asks[0]["price"])
@@ -1275,7 +1314,7 @@ class Dashboard:
             fav_mom = down_mom
         
         base_wr = self.winrate_table.get_winrate(fav_price, time_bin, span)
-        wr_str = f"{base_wr:.1f}%" if base_wr else "N/A"
+        wr_str = f"{base_wr * 100:.1f}%" if base_wr else "N/A"
         
         min_price = self.config.strategy.min_price
         max_price = self.config.strategy.max_price
@@ -1342,6 +1381,13 @@ class Dashboard:
             f"Up:          {self._fmt_price(up.last_price)} | Dev: {self._fmt_dev(up_dev)} | Mom: {self._fmt_momentum(up_mom)}",
             f"Down:        {self._fmt_price(down.last_price)} | Dev: {self._fmt_dev(down_dev)} | Mom: {self._fmt_momentum(down_mom)}",
         ]
+
+        if self.config.regime_strategy.enabled:
+            regime_color = "cyan" if self.state.regime == "TRENDING" else "yellow" if self.state.regime == "MEAN_REVERTING" else "white"
+            lines.append("")
+            lines.append(f"Regime:      [{regime_color}][bold]{self.state.regime}[/bold][/{regime_color}] (Hurst: [cyan]{self.state.hurst:.3f}[/cyan] | OFI: [cyan]{self.state.ofi_ma:.1f}[/cyan])")
+            if self.stats.consecutive_losses > 0:
+                lines.append(f"Losses:      [red]{self.stats.consecutive_losses}[/red] (max: {self.config.regime_strategy.max_consecutive_losses})")
         
         title = f"[bold]Strategy: P {min_price}-{max_price}, T>={min_elapsed}s, Dev {min_dev}%-{max_dev}%[/bold]"
         border = "green" if signal_color == "bold green" else "magenta"
@@ -1422,8 +1468,12 @@ class Dashboard:
         self.hedge_flash = False
         
         # Format title based on mode (Simulation vs Real) and strategy (Dual vs Single)
-        is_trap_strategy = hasattr(self.config, 'dual_position') and self.config.dual_position.enabled
-        if is_trap_strategy:
+        if self.config.regime_strategy.enabled:
+            total_budget = self.config.regime_strategy.total_budget_usd
+            dom_alloc = total_budget * self.config.regime_strategy.dominant_allocation_pct
+            ins_alloc = total_budget * self.config.regime_strategy.insurance_allocation_pct
+            title_text = f"MONEY REAL Trading (Dominant: ${dom_alloc:.2f}, Ins: ${ins_alloc:.2f})"
+        elif hasattr(self.config, 'dual_position') and self.config.dual_position.enabled:
             total_budget = self.config.dual_position.total_budget_usd
             main_alloc = total_budget * self.config.dual_position.main_allocation_pct
             trap_alloc = total_budget * self.config.dual_position.trap_allocation_pct
@@ -1765,6 +1815,11 @@ class LiveTradingBot:
         self.tasks = []
         self._sim_history: Optional[SimulationHistoryLogger] = None
         self._web_snapshot_holder: Optional[WebSnapshotHolder] = None
+        
+        # Circuit Breaker & Regime strategy tracking
+        self.circuit_breaker_until = 0.0
+        self.consecutive_losses = 0
+        self.scaling_engine: Optional[ScalingExecutionEngine] = None
     
     async def initialize(self) -> bool:
         # Load config
@@ -1885,6 +1940,7 @@ class LiveTradingBot:
             simulation_mode=sim,
         )
         self.hedge_mgr = HedgeManager(self.executor, hedge_config)
+        self.scaling_engine = ScalingExecutionEngine(self.executor)
         
         # Auto redeemer (live only)
         if sim:
@@ -2118,6 +2174,11 @@ class LiveTradingBot:
     
     async def execute_entry(self, side: str):
         """Execute entry order (live CLOB or simulation)."""
+        if time.time() < self.stats.circuit_breaker_until:
+            cooldown_left = int(self.stats.circuit_breaker_until - time.time())
+            signal_logger.info(f"SIGNAL BLOCKED: Circuit breaker active ({cooldown_left}s remaining)")
+            return
+
         if not self.stats.can_enter():
             signal_logger.info(f"SIGNAL IGNORED: {side} - cannot enter (already in position)")
             return
@@ -2195,7 +2256,7 @@ class LiveTradingBot:
             wr = self.dashboard.winrate_table.get_winrate(
                 fav_price, time_bin, self.config.market.interval_minutes
             )
-            signal_logger.info(f"  Win Rate: {wr:.1f}%" if wr else "  Win Rate: N/A")
+            signal_logger.info(f"  Win Rate: {wr * 100:.1f}%" if wr else "  Win Rate: N/A")
         
         # Strategy conditions snapshot
         signal_logger.info(f"  Config: min_price={self.config.strategy.min_price}, "
@@ -2216,8 +2277,120 @@ class LiveTradingBot:
         
         signal_logger.info("=" * 60)
         
+        # Spread check
+        spread = abs(token.best_ask - token.best_bid) if token.best_bid and token.best_ask else 1.0
+        max_spread = self.config.regime_strategy.max_spread_usd
+        if spread > max_spread:
+            signal_logger.warning(f"SIGNAL BLOCKED: Spread too wide (${spread:.4f} > ${max_spread:.4f})")
+            return
+
         logger.info(f"Executing entry: {token_name}")
         
+        # --- NEW REGIME ADAPTATION STRATEGY ---
+        if self.config.regime_strategy.enabled:
+            # Determine target and insurance tokens based on regime
+            target_token = token
+            insurance_token = opposite_token
+            target_name = token_name
+            insurance_name = "DOWN" if token_name == "UP" else "UP"
+            
+            if self.state.regime == "MEAN_REVERTING":
+                # Reverse trade direction
+                target_token = opposite_token
+                insurance_token = token
+                target_name = "DOWN" if token_name == "UP" else "UP"
+                insurance_name = token_name
+                signal_logger.info(f"MEAN REVERSION REGIME: Reversing trade direction from {token_name} to {target_name}!")
+            
+            # Calculate sizing using Kelly Criterion
+            win_prob = wr if (wr is not None) else 0.55
+            f_star = KellyCriterionCalculator.calculate(
+                win_prob=win_prob,
+                price=target_token.last_price or 0.5,
+                half_kelly=True
+            )
+            
+            # Dominant and Insurance allocations
+            total_budget = self.config.regime_strategy.total_budget_usd
+            allocated_budget = f_star * total_budget
+            
+            dominant_budget = allocated_budget * self.config.regime_strategy.dominant_allocation_pct
+            insurance_budget = allocated_budget * self.config.regime_strategy.insurance_allocation_pct
+            
+            signal_logger.info(f"KELLY CALCULATION:")
+            signal_logger.info(f"  Win Prob: {win_prob*100:.1f}% | Price: {target_token.last_price:.4f}")
+            signal_logger.info(f"  Kelly Fraction (Half): {f_star:.4f}")
+            signal_logger.info(f"  Total Budget: ${total_budget:.2f} | Allocated: ${allocated_budget:.2f}")
+            signal_logger.info(f"  Dominant ({target_name}): ${dominant_budget:.2f}")
+            signal_logger.info(f"  Insurance ({insurance_name}): ${insurance_budget:.2f}")
+            
+            if dominant_budget < 0.05:
+                signal_logger.info("Kelly allocation too small (less than $0.05). Skipping entry.")
+                return
+                
+            # Perform scaling-in execution
+            tasks = [
+                self.scaling_engine.scale_in(
+                    token_id=target_token.token_id,
+                    total_budget=dominant_budget,
+                    target_price=target_token.best_ask or 0.5,
+                    parts=self.config.regime_strategy.scaling_parts,
+                    total_duration_sec=self.config.regime_strategy.scaling_duration_sec
+                )
+            ]
+            if insurance_budget >= 0.05:
+                tasks.append(
+                    self.scaling_engine.scale_in(
+                        token_id=insurance_token.token_id,
+                        total_budget=insurance_budget,
+                        target_price=insurance_token.best_ask or 0.5,
+                        parts=self.config.regime_strategy.scaling_parts,
+                        total_duration_sec=self.config.regime_strategy.scaling_duration_sec
+                    )
+                )
+                
+            results = await asyncio.gather(*tasks)
+            dom_success, dom_avg_price, dom_contracts = results[0]
+            ins_success, ins_avg_price, ins_contracts = results[1] if len(results) > 1 else (False, 0.0, 0)
+            
+            # Record positions
+            if dom_success and dom_contracts > 0:
+                self.stats.record_entry(
+                    token_name=target_name,
+                    token_id=target_token.token_id,
+                    opposite_token_id=insurance_token.token_id,
+                    price=dom_avg_price,
+                    contracts=dom_contracts,
+                    market_slug=self.state.slug
+                )
+                self._simulation_log_entry(
+                    target_name, dom_avg_price, dom_contracts, dom_contracts * dom_avg_price
+                )
+                self.dashboard.entry_flash = True
+                
+                signal_logger.info("DOMINANT POSITION SCALED IN SUCCESSFULLY")
+                signal_logger.info(f"  Token: {target_name}")
+                signal_logger.info(f"  Contracts: {dom_contracts}")
+                signal_logger.info(f"  Avg Price: {dom_avg_price:.4f}")
+                
+                # Notify Telegram
+                hsim = "GAME <b>[SIMULATION]</b>\n" if self.config.simulation.enabled else ""
+                await self.telegram.send_message(
+                    f"{hsim}"
+                    f"📈 <b>Regime Entry Scaled-In (Kelly: {f_star:.2%})</b>\n"
+                    f"📊 Dominant: {target_name} ({dom_contracts} contracts @ ${dom_avg_price:.3f})\n"
+                    f"🛡️ Insurance: {insurance_name} ({ins_contracts} contracts @ ${ins_avg_price:.3f})\n"
+                    f"📁 Regime: {self.state.regime} (H={self.state.hurst:.2f})\n"
+                )
+            if ins_success and ins_contracts > 0:
+                self.dashboard.hedge_flash = True
+                self.stats.record_hedge(
+                    contracts=ins_contracts,
+                    price=ins_avg_price
+                )
+            return
+
+        # --- FALLBACK: ORIGINAL ENTRY FLOWS ---
         use_dual = hasattr(self.config, 'dual_position') and self.config.dual_position.enabled
         
         if use_dual:
@@ -2427,6 +2600,7 @@ class LiveTradingBot:
                                     btc_anchor=0.0,  # Will be fetched if needed
                                     btc_current=0.0
                                 )
+                                self._on_position_resolved(record)
 
                                 if record:
                                     logger.info(f"Position resolved: {record.won} via {resolution_source}")
@@ -2455,6 +2629,7 @@ class LiveTradingBot:
                 btc_anchor=0.0,
                 btc_current=0.0
             )
+            self._on_position_resolved(record)
             pos.awaiting_resolution = False
 
     def _determine_win_from_chainlink(self, pos: Position) -> bool:
@@ -2469,6 +2644,24 @@ class LiveTradingBot:
             return btc_current > btc_anchor
         else:  # DOWN
             return btc_current <= btc_anchor
+
+    def _on_position_resolved(self, record: Optional[TradeRecord]):
+        if not record:
+            return
+        if record.won:
+            self.stats.consecutive_losses = 0
+            logger.info("Trade won! Consecutive losses reset to 0.")
+        else:
+            self.stats.consecutive_losses += 1
+            logger.info(f"Trade lost! Consecutive losses count: {self.stats.consecutive_losses}")
+            max_losses = self.config.regime_strategy.max_consecutive_losses
+            if self.stats.consecutive_losses >= max_losses:
+                cooldown_min = self.config.regime_strategy.circuit_breaker_duration_min
+                self.stats.circuit_breaker_until = time.time() + cooldown_min * 60
+                msg = f"🛑 <b>CIRCUIT BREAKER TRIGGERED</b>\nBot has suffered {self.stats.consecutive_losses} consecutive losses. Trading is suspended for {cooldown_min} minutes."
+                logger.warning(msg)
+                asyncio.create_task(self.telegram.send_message(msg))
+        self.stats._save()
     
     async def run_session(self):
         """Run single market session with dashboard."""
@@ -2480,10 +2673,20 @@ class LiveTradingBot:
         
         # Track running order task (для non-blocking execution)
         order_task: Optional[asyncio.Task] = None
+        last_hurst_calc_time = 0.0
         
         try:
             with Live(self.dashboard.render(), refresh_per_second=4, console=console) as live:
                 while self.running:
+                    # Periodically calculate Hurst Exponent and update Regime
+                    now = time.time()
+                    if now - last_hurst_calc_time >= 10.0:
+                        last_hurst_calc_time = now
+                        prices_list = list(self.state.hurst_prices)
+                        if len(prices_list) >= 20:
+                            self.state.hurst = HurstExponentCalculator.calculate(prices_list)
+                            self.state.regime = RegimeDetector.detect(self.state.hurst, self.state.ofi_ma)
+
                     # Update dashboard (никогда не блокируется)
                     live.update(self.dashboard.render())
                     if self._web_snapshot_holder:
@@ -2528,7 +2731,7 @@ class LiveTradingBot:
                     task.cancel()
                     try:
                         await task
-                    except Exception:
+                    except (Exception, asyncio.CancelledError):
                         pass
             
             # Graceful WebSocket shutdown
@@ -2536,7 +2739,7 @@ class LiveTradingBot:
             try:
                 ws_task.cancel()
                 await ws_task
-            except Exception:
+            except (Exception, asyncio.CancelledError):
                 pass
             
             # Stop User WebSocket for order tracking
@@ -2546,7 +2749,7 @@ class LiveTradingBot:
                 try:
                     self._user_ws_task.cancel()
                     await self._user_ws_task
-                except Exception:
+                except (Exception, asyncio.CancelledError):
                     pass
     
     async def _safe_execute_entry(self, signal: str):
@@ -2605,7 +2808,7 @@ class LiveTradingBot:
                 try:
                     redeemer_task.cancel()
                     await redeemer_task
-                except Exception:
+                except (Exception, asyncio.CancelledError):
                     pass
             
             # Gracefully close Chainlink RTDS WebSocket
@@ -2615,7 +2818,7 @@ class LiveTradingBot:
                 try:
                     self._chainlink_task.cancel()
                     await self._chainlink_task
-                except Exception:
+                except (Exception, asyncio.CancelledError):
                     pass
             
             await self.telegram.send_message("STOP Bot stopped")
