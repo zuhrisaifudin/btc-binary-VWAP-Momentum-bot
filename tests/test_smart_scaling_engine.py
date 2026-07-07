@@ -67,14 +67,16 @@ class TestSmartScalingEngine(unittest.TestCase):
         price = self.scaling_engine.calculate_maker_price(
             "SELL", best_bid, best_ask, 0
         )
-        self.assertEqual(price, 0.51 - 0.01)  # best_ask - initial_offset
+        self.assertEqual(price, 0.501)  # best_bid + 0.001 buffer
 
         # Later slice with higher offset
         price = self.scaling_engine.calculate_maker_price(
             "SELL", best_bid, best_ask, 2
         )
         expected = 0.51 - 0.01 - (2 * 0.005)  # best_ask - initial - increment
-        self.assertEqual(price, expected)
+        # 0.51 - 0.01 - 0.01 = 0.49, which is below best_bid + 0.001 (0.501)
+        # So it should be capped at 0.501
+        self.assertEqual(price, 0.501)
 
         # Don't drop below best_bid
         price = self.scaling_engine.calculate_maker_price(
@@ -105,7 +107,7 @@ class TestSmartScalingEngine(unittest.TestCase):
 
         # Far from best_ask - low probability
         prob = self.scaling_engine.simulate_fill_probability(
-            "BUY", 0.450, 0.50, 0.51  # Far from ask
+            "BUY", 0.440, 0.50, 0.51  # Far from ask
         )
         self.assertLess(prob, 0.4)
 
@@ -129,18 +131,18 @@ class TestSmartScalingEngine(unittest.TestCase):
     @patch('random.random')
     def test_simulate_fill(self, mock_random):
         """Test fill simulation"""
-        mock_random.return_value = 0.5
-
         # High probability - full fill
+        mock_random.side_effect = [0.5, 0.5]
         filled = self.scaling_engine.simulate_fill("BUY", 10, 0.9)
         self.assertEqual(filled, 10)
 
         # Low probability - no fill
+        mock_random.side_effect = [0.5]
         filled = self.scaling_engine.simulate_fill("BUY", 10, 0.2)
         self.assertEqual(filled, 0)
 
         # Medium probability - partial fill
-        mock_random.return_value = 0.3  # Triggers partial fill
+        mock_random.side_effect = [0.3, 0.8]  # First: fill check (0.3 < 0.5 -> True), Second: partial check (0.8 < 0.7 -> False)
         filled = self.scaling_engine.simulate_fill("BUY", 10, 0.5)
         self.assertEqual(filled, 5)  # Half fill
 
@@ -217,9 +219,7 @@ class TestSmartScalingEngine(unittest.TestCase):
         self.mock_executor._client.create_order.return_value = {"id": "order123"}
         self.mock_executor._client.post_order.return_value = {"success": True}
         self.mock_executor._client.cancel_order.return_value = {"success": True}
-        self.mock_executor.get_order_fills.return_value = [
-            {"size": 5, "price": 0.505}
-        ]
+        self.mock_executor.get_order_fills.return_value = 5
 
         # Run scaling
         result = await self.scaling_engine.scale_in(

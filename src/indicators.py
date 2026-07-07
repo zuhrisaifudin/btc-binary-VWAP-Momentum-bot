@@ -89,8 +89,7 @@ class WinRateTable:
     """Win rate statistics table loaded from CSV."""
 
     def __init__(self, csv_path: str):
-        self.data = {}
-        self.price_ranges = []
+        self.data: List[Dict[str, Any]] = []
         self._load(csv_path)
 
     def _load(self, csv_path: str):
@@ -98,55 +97,104 @@ class WinRateTable:
         try:
             with open(csv_path, 'r') as f:
                 reader = csv.reader(f)
-                next(reader)  # Skip header
+                header = next(reader)  # Skip header
                 for row in reader:
-                    if not row or not row[0]:
+                    if not row or len(row) < 4:
                         continue
-                    price_range = row[0]
-                    self.price_ranges.append(price_range)
-                    self.data[price_range] = {}
-                    for i, val in enumerate(row[1:], start=0):
-                        if val:
-                            try:
-                                self.data[price_range][i] = float(val)
-                            except ValueError:
-                                pass
-        except Exception as e:
-            # Log warning but don't crash - just use empty table
-            pass
+                    try:
+                        self.data.append({
+                            'price': float(row[0]),
+                            'minute': int(row[1]),
+                            'win_count': int(row[2]),
+                            'total_count': int(row[3])
+                        })
+                    except ValueError:
+                        pass
+        except Exception:
+            self.data = []
 
     def get_winrate(self, price: float, minute: int, interval_minutes: int = 15) -> Optional[float]:
         """
-        Get win rate for given price and minute.
-
-        Args:
-            price: Current token price
-            minute: Current minute in market session
-            interval_minutes: Market interval length (affects minute clamping)
-
-        Returns:
-            Win rate as fraction (0-1), or None if no data
+        Get win rate for given price and minute with interpolation/clamping.
         """
-        # Find matching price range
-        price_range = None
-        for pr in self.price_ranges:
-            try:
-                low, high = pr.split('-')
-                if float(low) <= price <= float(high):
-                    price_range = pr
-                    break
-            except Exception:
-                continue
-
-        # If no match and price is high, use highest range
-        if not price_range and price > 0.99 and self.price_ranges:
-            price_range = self.price_ranges[-1]
-
-        if not price_range:
+        # Filter only valid rows with total_count > 0
+        valid_rows = [r for r in self.data if r['total_count'] > 0]
+        if not valid_rows:
             return None
 
-        # Clamp minute to valid range
-        cap = max(0, interval_minutes - 1)
-        minute = max(0, min(cap, minute))
+        # Find unique prices and minutes
+        prices = sorted(list(set(r['price'] for r in valid_rows)))
+        minutes = sorted(list(set(r['minute'] for r in valid_rows)))
 
-        return self.data.get(price_range, {}).get(minute)
+        if not prices or not minutes:
+            return None
+
+        # Clamp price and minute to available ranges
+        price = max(prices[0], min(prices[-1], price))
+        minute = max(minutes[0], min(minutes[-1], minute))
+
+        # Helper function to get winrate for a specific coordinate
+        def get_rate(p: float, m: int) -> Optional[float]:
+            for r in valid_rows:
+                if abs(r['price'] - p) < 1e-6 and r['minute'] == m:
+                    return r['win_count'] / r['total_count']
+            return None
+
+        # Find closest price bins (p1 <= price <= p2)
+        if price in prices:
+            p1 = p2 = price
+        else:
+            p1 = max(p for p in prices if p < price)
+            p2 = min(p for p in prices if p > price)
+
+        # Find closest minute bins (m1 <= minute <= m2)
+        if minute in minutes:
+            m1 = m2 = minute
+        else:
+            m1 = max(m for m in minutes if m < minute)
+            m2 = min(m for m in minutes if m > minute)
+
+        # Retrieve win rates at the corners
+        w11 = get_rate(p1, m1)
+        w12 = get_rate(p1, m2)
+        w21 = get_rate(p2, m1)
+        w22 = get_rate(p2, m2)
+
+        # Interpolate price at m1
+        if w11 is not None and w21 is not None:
+            if abs(p2 - p1) < 1e-6:
+                wm1 = w11
+            else:
+                wm1 = w11 + (price - p1) / (p2 - p1) * (w21 - w11)
+        elif w11 is not None:
+            wm1 = w11
+        elif w21 is not None:
+            wm1 = w21
+        else:
+            wm1 = None
+
+        # Interpolate price at m2
+        if w12 is not None and w22 is not None:
+            if abs(p2 - p1) < 1e-6:
+                wm2 = w12
+            else:
+                wm2 = w12 + (price - p1) / (p2 - p1) * (w22 - w12)
+        elif w12 is not None:
+            wm2 = w12
+        elif w22 is not None:
+            wm2 = w22
+        else:
+            wm2 = None
+
+        # Interpolate minute
+        if wm1 is not None and wm2 is not None:
+            if m2 == m1:
+                return wm1
+            else:
+                return wm1 + (minute - m1) / (m2 - m1) * (wm2 - wm1)
+        elif wm1 is not None:
+            return wm1
+        elif wm2 is not None:
+            return wm2
+        else:
+            return None

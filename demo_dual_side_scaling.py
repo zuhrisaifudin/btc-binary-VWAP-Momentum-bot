@@ -161,8 +161,10 @@ async def demo_scaling_engine():
     print("Running scaling simulation...")
     print("Token ID: up, Budget: $10.00")
 
-    # Mock the order book calls
-    mock_executor.get_order_book = lambda token: mock_executor.get_order_book(token)
+    orig_get_order_book = mock_executor.get_order_book
+    async def mock_get_order_book(token):
+        return orig_get_order_book(token)
+    mock_executor.get_order_book = mock_get_order_book
 
     result = await scaling_engine.scale_in(
         token_id="up",
@@ -263,8 +265,8 @@ async def demo_full_integration():
     # Update regime analyzer
     manager.update_price_data(market_data["up_token"]["price"])
     manager.update_order_book_data(
-        bids=market_data["up_token"]["bids"],
-        asks=market_data["up_token"]["asks"]
+        bids=[{"price": str(market_data["up_token"]["bid"]), "size": "100"}],
+        asks=[{"price": str(market_data["up_token"]["ask"]), "size": "100"}]
     )
 
     # Analyze regime

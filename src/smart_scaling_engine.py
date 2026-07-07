@@ -28,6 +28,7 @@ class ScalingConfig:
     taker_fallback_start: int = 8  # Start taker fallback at this slice
     simulation_fill_probability_base: float = 0.7
     simulation_partial_fill_prob: float = 0.3
+    max_contracts: int = 999999
 
 @dataclass
 class ScalingResult:
@@ -245,7 +246,7 @@ class SmartScalingEngine:
                             self.executor._client.create_market_order,
                             OrderArgs(
                                 price=0.0,  # Market order
-                                size=filled_contracts,
+                                size=contracts,
                                 side=BUY,
                                 token_id=token_id
                             )
@@ -255,7 +256,7 @@ class SmartScalingEngine:
                             self.executor._client.create_market_order,
                             OrderArgs(
                                 price=0.0,  # Market order
-                                size=filled_contracts,
+                                size=contracts,
                                 side=SELL,
                                 token_id=token_id
                             )
@@ -325,11 +326,12 @@ class SmartScalingEngine:
                         # Wait for fill with timeout
                         start_time = time.time()
                         timeout = 2.0  # 2 second timeout per order
+                        filled_contracts = 0
 
                         while time.time() - start_time < timeout:
                             fills = await self.executor.get_order_fills(response.get("id"))
-                            if fills:
-                                filled_contracts = sum(f.get("size", 0) for f in fills)
+                            if fills > 0:
+                                filled_contracts = fills
                                 total_cost += filled_contracts * limit_price
                                 contracts_filled += filled_contracts
                                 maker_fills += 1
