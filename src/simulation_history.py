@@ -37,6 +37,19 @@ CSV_COLUMNS = [
     "max_dd_abs",
     "max_dd_pct",
     "hedged",
+    "hedge_contracts",
+    "hedge_payout_usd",
+    "resolution_source",
+    "regime_type",
+    "confidence",
+    "kelly_fraction",
+    "is_dominant",
+    "is_insurance",
+    "execution_duration_sec",
+    "avg_fill_price",
+    "maker_fills",
+    "taker_fills",
+    "timestamp",
 ]
 
 
@@ -94,6 +107,15 @@ class SimulationHistoryLogger:
         cumulative_realized_pnl: float,
         hedged: bool,
         trade_number: int,
+        regime_type: str = "",
+        confidence: float = 0.0,
+        kelly_fraction: float = 0.0,
+        is_dominant: bool = True,
+        is_insurance: bool = False,
+        execution_duration_sec: float = 0.0,
+        avg_fill_price: float = 0.0,
+        maker_fills: int = 0,
+        taker_fills: int = 0,
     ) -> None:
         """trade_number = count of closed trades + 1 (this open is the Nth position)."""
         ts = time.time()
@@ -116,6 +138,19 @@ class SimulationHistoryLogger:
             "max_dd_abs": "",
             "max_dd_pct": "",
             "hedged": hedged,
+            "hedge_contracts": 0,
+            "hedge_payout_usd": 0.0,
+            "resolution_source": "",
+            "regime_type": regime_type,
+            "confidence": confidence,
+            "kelly_fraction": kelly_fraction,
+            "is_dominant": is_dominant,
+            "is_insurance": is_insurance,
+            "execution_duration_sec": execution_duration_sec,
+            "avg_fill_price": avg_fill_price,
+            "maker_fills": maker_fills,
+            "taker_fills": taker_fills,
+            "timestamp": ts,
         }
         self._append_csv_row(row)
         self._append_jsonl(
@@ -146,6 +181,18 @@ class SimulationHistoryLogger:
         total_closed: int,
         win_rate_pct: float,
         hedged: bool,
+        hedge_contracts: int = 0,
+        hedge_payout_usd: float = 0.0,
+        resolution_source: str = "",
+        regime_type: str = "",
+        confidence: float = 0.0,
+        kelly_fraction: float = 0.0,
+        is_dominant: bool = True,
+        is_insurance: bool = False,
+        execution_duration_sec: float = 0.0,
+        avg_fill_price: float = 0.0,
+        maker_fills: int = 0,
+        taker_fills: int = 0,
     ) -> None:
         ts = getattr(record, "timestamp", None) or time.time()
         row = {
@@ -167,6 +214,19 @@ class SimulationHistoryLogger:
             "max_dd_abs": f"{record.max_drawdown_abs:.6f}",
             "max_dd_pct": f"{record.max_drawdown_pct:.2f}",
             "hedged": hedged,
+            "hedge_contracts": hedge_contracts,
+            "hedge_payout_usd": hedge_payout_usd,
+            "resolution_source": resolution_source,
+            "regime_type": regime_type,
+            "confidence": confidence,
+            "kelly_fraction": kelly_fraction,
+            "is_dominant": is_dominant,
+            "is_insurance": is_insurance,
+            "execution_duration_sec": execution_duration_sec,
+            "avg_fill_price": avg_fill_price,
+            "maker_fills": maker_fills,
+            "taker_fills": taker_fills,
+            "timestamp": ts,
         }
         self._append_csv_row(row)
         self._append_jsonl(
@@ -188,6 +248,18 @@ class SimulationHistoryLogger:
                 "max_drawdown_abs": record.max_drawdown_abs,
                 "max_drawdown_pct": record.max_drawdown_pct,
                 "hedged": hedged,
+                "hedge_contracts": hedge_contracts,
+                "hedge_payout_usd": hedge_payout_usd,
+                "resolution_source": resolution_source,
+                "regime_type": regime_type,
+                "confidence": confidence,
+                "kelly_fraction": kelly_fraction,
+                "is_dominant": is_dominant,
+                "is_insurance": is_insurance,
+                "execution_duration_sec": execution_duration_sec,
+                "avg_fill_price": avg_fill_price,
+                "maker_fills": maker_fills,
+                "taker_fills": taker_fills,
             }
         )
         logger.info(

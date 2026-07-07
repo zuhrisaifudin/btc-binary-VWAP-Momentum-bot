@@ -39,9 +39,9 @@ from src.regime_strategy import (
     HurstExponentCalculator,
     OrderFlowImbalanceCalculator,
     RegimeDetector,
-    KellyCriterionCalculator,
-    ScalingExecutionEngine
+    KellyCriterionCalculator
 )
+from src.smart_scaling_engine import SmartScalingEngine, ScalingConfig
 
 # Setup logging
 Path("logs").mkdir(exist_ok=True)
@@ -1940,7 +1940,16 @@ class LiveTradingBot:
             simulation_mode=sim,
         )
         self.hedge_mgr = HedgeManager(self.executor, hedge_config)
-        self.scaling_engine = ScalingExecutionEngine(self.executor)
+        # Create scaling config from regime strategy config
+        scaling_config = ScalingConfig(
+            parts=self.config.regime_strategy.scaling_parts,
+            total_duration_sec=self.config.regime_strategy.scaling_duration_sec,
+            max_spread_usd=self.config.regime_strategy.max_spread_usd,
+            initial_offset_usd=0.01,
+            offset_increment_usd=0.005,
+            taker_fallback_start=8
+        )
+        self.scaling_engine = SmartScalingEngine(self.executor, scaling_config)
         
         # Auto redeemer (live only)
         if sim:
@@ -2132,11 +2141,40 @@ class LiveTradingBot:
         avg_price: float,
         contracts: int,
         total_cost: float,
+        scaling_result = None,
+        is_dominant: bool = True,
+        is_insurance: bool = False,
     ) -> None:
         if not self._sim_history or not self.config.simulation.enabled:
             return
         pos = self.stats.position
         hedged = bool(pos and pos.hedged)
+
+        # Determine regime type
+        regime_type = self.state.regime if hasattr(self.state, 'regime') else "NEUTRAL"
+
+        # Calculate confidence score
+        confidence = 0.0
+        if hasattr(self.state, 'hurst') and hasattr(self.state, 'ofi_ma'):
+            confidence = RegimeDetector.calculate_confidence(self.state.hurst, self.state.ofi_ma)
+
+        # Calculate Kelly fraction if available
+        kelly_fraction = 0.0
+        if hasattr(self, '_last_kelly_fraction'):
+            kelly_fraction = self._last_kelly_fraction
+
+        # Get execution details from scaling result
+        execution_duration_sec = 0.0
+        avg_fill_price = avg_price
+        maker_fills = 0
+        taker_fills = 0
+
+        if scaling_result:
+            execution_duration_sec = scaling_result.slices_executed * (self.config.regime_strategy.scaling_duration_sec / self.config.regime_strategy.scaling_parts)
+            avg_fill_price = scaling_result.avg_price
+            maker_fills = scaling_result.maker_fills
+            taker_fills = scaling_result.taker_fills
+
         self._sim_history.log_open(
             market_slug=self.state.slug,
             token_name=token_name,
@@ -2146,6 +2184,15 @@ class LiveTradingBot:
             cumulative_realized_pnl=self.stats.total_pnl,
             hedged=hedged,
             trade_number=len(self.stats.trades) + 1,
+            regime_type=regime_type,
+            confidence=0.0,  # TODO: Add confidence calculation
+            kelly_fraction=kelly_fraction,
+            is_dominant=is_dominant,
+            is_insurance=is_insurance,
+            execution_duration_sec=execution_duration_sec,
+            avg_fill_price=avg_fill_price,
+            maker_fills=maker_fills,
+            taker_fills=taker_fills,
         )
         signal_logger.info(
             f"  [SIM] History OPEN logged | realized PnL before exit: ${self.stats.total_pnl:+.4f}"
@@ -2155,12 +2202,43 @@ class LiveTradingBot:
         if not self._sim_history or not self.config.simulation.enabled:
             return
         n = len(self.stats.trades)
+
+        # Get regime information
+        regime_type = self.state.regime if hasattr(self.state, 'regime') else "NEUTRAL"
+
+        # Calculate confidence score
+        confidence = 0.0
+        if hasattr(self.state, 'hurst') and hasattr(self.state, 'ofi_ma'):
+            confidence = RegimeDetector.calculate_confidence(self.state.hurst, self.state.ofi_ma)
+
+        # Get Kelly fraction if available
+        kelly_fraction = 0.0
+        if hasattr(self, '_last_kelly_fraction'):
+            kelly_fraction = self._last_kelly_fraction
+
+        # Determine if this is a dominant or insurance position
+        # TODO: This needs to be tracked when opening the position
+        is_dominant = True  # Default assumption
+        is_insurance = False
+
         self._sim_history.log_close(
             record,
             cumulative_pnl=self.stats.total_pnl,
             total_closed=n,
             win_rate_pct=self.stats.win_rate,
             hedged=hedged_was,
+            hedge_contracts=record.hedge_contracts if hasattr(record, 'hedge_contracts') else 0,
+            hedge_payout_usd=record.hedge_price if hasattr(record, 'hedge_price') else 0.0,
+            resolution_source=record.resolution_source if hasattr(record, 'resolution_source') else "",
+            regime_type=regime_type,
+            confidence=confidence,
+            kelly_fraction=kelly_fraction,
+            is_dominant=is_dominant,
+            is_insurance=is_insurance,
+            execution_duration_sec=0.0,  # TODO: Track execution duration
+            avg_fill_price=record.entry_price,  # TODO: Get actual avg fill price
+            maker_fills=0,  # TODO: Track maker fills
+            taker_fills=0,  # TODO: Track taker fills
         )
         self._sim_history.write_summary(
             [t.__dict__ for t in self.stats.trades],
@@ -2321,12 +2399,21 @@ class LiveTradingBot:
             # Use the more conservative calculation (smaller of the two)
             f_star = min(f_star_standard, f_star_conservative)
 
+            # Store Kelly fraction for simulation logging
+            self._last_kelly_fraction = f_star
+
             # Dominant and Insurance allocations
             total_budget = self.config.regime_strategy.total_budget_usd
             allocated_budget = f_star * total_budget
 
             dominant_budget = allocated_budget * self.config.regime_strategy.dominant_allocation_pct
             insurance_budget = allocated_budget * self.config.regime_strategy.insurance_allocation_pct
+
+            # Validate that allocations sum to 1.0
+            allocation_sum = self.config.regime_strategy.dominant_allocation_pct + self.config.regime_strategy.insurance_allocation_pct
+            if abs(allocation_sum - 1.0) > 0.001:
+                logger.error(f"Invalid allocation split: {self.config.regime_strategy.dominant_allocation_pct} + {self.config.regime_strategy.insurance_allocation_pct} = {allocation_sum} (should be 1.0)")
+                return
 
             signal_logger.info(f"KELLY CALCULATION:")
             signal_logger.info(f"  Win Prob: {win_prob*100:.1f}% | Price: {target_token.last_price:.4f}")
@@ -2371,9 +2458,14 @@ class LiveTradingBot:
                     )
                 )
                 
-            results = await asyncio.gather(*tasks)
-            dom_success, dom_avg_price, dom_contracts = results[0]
-            ins_success, ins_avg_price, ins_contracts = results[1] if len(results) > 1 else (False, 0.0, 0)
+            # Execute scaling tasks
+            dom_result = dominant_result  # Already awaited above
+            ins_result = scaling_results[1] if len(scaling_results) > 1 else None
+
+            dom_success, dom_avg_price, dom_contracts = dom_result.success, dom_result.avg_price, dom_result.contracts_filled
+            ins_success = ins_result.success if ins_result else False
+            ins_avg_price = ins_result.avg_price if ins_result else 0.0
+            ins_contracts = ins_result.contracts_filled if ins_result else 0
             
             # Record positions
             if dom_success and dom_contracts > 0:
@@ -2386,7 +2478,10 @@ class LiveTradingBot:
                     market_slug=self.state.slug
                 )
                 self._simulation_log_entry(
-                    target_name, dom_avg_price, dom_contracts, dom_contracts * dom_avg_price
+                    target_name, dom_avg_price, dom_contracts, dom_contracts * dom_avg_price,
+                    scaling_result=dom_result,
+                    is_dominant=True,
+                    is_insurance=False
                 )
                 self.dashboard.entry_flash = True
                 
@@ -2409,6 +2504,13 @@ class LiveTradingBot:
                 self.stats.record_hedge(
                     contracts=ins_contracts,
                     price=ins_avg_price
+                )
+                # Log insurance position
+                self._simulation_log_entry(
+                    insurance_name, ins_avg_price, ins_contracts, ins_contracts * ins_avg_price,
+                    scaling_result=ins_result,
+                    is_dominant=False,
+                    is_insurance=True
                 )
             return
 

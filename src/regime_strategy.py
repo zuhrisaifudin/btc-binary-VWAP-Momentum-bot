@@ -54,7 +54,7 @@ class HurstExponentCalculator:
                     y = subset - mean
                     z = np.cumsum(y)
                     r = np.max(z) - np.min(z)
-                    s = np.std(subset)
+                    s = np.std(subset, ddof=1)  # Sample standard deviation with ddof=1
                     if s > 0:
                         rs_vals_for_lag.append(r / s)
                         
@@ -160,6 +160,61 @@ class RegimeDetector:
             return "MEAN_REVERTING"
         else:
             return "NEUTRAL"
+
+    @staticmethod
+    def calculate_confidence(hurst: float, ofi_ma: float) -> float:
+        """
+        Calculate confidence score for the regime detection.
+        Returns a value between 0 and 1.
+        """
+        # Base confidence from Hurst exponent
+        if hurst > 0.55:
+            hurst_confidence = min(1.0, (hurst - 0.55) / 0.2)  # Scale 0.55-0.75 to 0-1
+        elif hurst < 0.45:
+            hurst_confidence = min(1.0, (0.45 - hurst) / 0.2)  # Scale 0.25-0.45 to 0-1
+        else:
+            hurst_confidence = 0.0  # Neutral regime has low confidence
+
+        # Add some confidence from OFI magnitude
+        ofi_magnitude = abs(ofi_ma) / 100.0  # Normalize OFI
+        ofi_confidence = min(1.0, ofi_magnitude)
+
+        # Combine with weights
+        total_confidence = (hurst_confidence * 0.7) + (ofi_confidence * 0.3)
+
+        return round(total_confidence, 3)
+
+    @staticmethod
+    def detect_with_direction(
+        hurst: float,
+        ofi_ma: float,
+        recent_move_pct: float
+    ) -> Tuple[str, Optional[str]]:
+        """
+        Detects regime and determines dominant trading side.
+
+        Args:
+            hurst: Hurst exponent value
+            ofi_ma: Moving average of Order Flow Imbalance
+            recent_move_pct: Recent price movement percentage
+
+        Returns:
+            Tuple of (regime, dominant_side)
+            dominant_side: "UP", "DOWN", or None
+        """
+        regime = RegimeDetector.detect(hurst, ofi_ma)
+
+        if regime == "TRENDING":
+            # Follow the order flow direction
+            dominant_side = "UP" if ofi_ma > 0 else "DOWN"
+        elif regime == "MEAN_REVERTING":
+            # Bet against the recent move
+            dominant_side = "DOWN" if recent_move_pct > 0 else "UP"
+        else:  # NEUTRAL
+            # No clear direction, return None
+            dominant_side = None
+
+        return regime, dominant_side
 
 class KellyCriterionCalculator:
     """
