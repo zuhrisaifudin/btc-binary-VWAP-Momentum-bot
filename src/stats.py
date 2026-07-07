@@ -227,8 +227,8 @@ class TradingStats:
 
         return record, pnl
 
-    def close_position(self, won_or_final_price, resolution_source: str = "chainlink_oracle",
-                      btc_anchor: float = 0.0, btc_current: float = 0.0) -> Optional[TradeRecord]:
+    def close_position(self, won_or_final_price=None, resolution_source: str = "chainlink_oracle",
+                      btc_anchor: float = 0.0, btc_current: float = 0.0, won: Optional[bool] = None) -> Optional[TradeRecord]:
         """Close the current position using the resolved market outcome.
 
         Backward compatibility: accepts either won: bool (new) or final_price: float (old).
@@ -237,17 +237,20 @@ class TradingStats:
             return None
 
         # Handle backward compatibility
-        if isinstance(won_or_final_price, bool):
-            won = won_or_final_price
-            final_price = 1.0 if won else 0.0
+        if won is not None:
+            won_val = won
+            final_price = 1.0 if won_val else 0.0
+        elif isinstance(won_or_final_price, bool):
+            won_val = won_or_final_price
+            final_price = 1.0 if won_val else 0.0
         else:
             # Legacy mode
             final_price = won_or_final_price
-            won = final_price >= 0.70
+            won_val = final_price >= 0.70 if final_price is not None else False
             resolution_source = "preliminary_last_price"
 
         record, pnl = self._build_trade_record(
-            self.position, won, resolution_source, btc_anchor, btc_current
+            self.position, won_val, resolution_source, btc_anchor, btc_current
         )
 
         self.daily_pnl += pnl

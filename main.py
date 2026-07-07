@@ -2280,7 +2280,7 @@ class LiveTradingBot:
         # Spread check
         spread = abs(token.best_ask - token.best_bid) if token.best_bid and token.best_ask else 1.0
         max_spread = self.config.regime_strategy.max_spread_usd
-        if spread > max_spread:
+        if round(spread, 4) > max_spread:
             signal_logger.warning(f"SIGNAL BLOCKED: Spread too wide (${spread:.4f} > ${max_spread:.4f})")
             return
 
@@ -2304,28 +2304,50 @@ class LiveTradingBot:
             
             # Calculate sizing using Kelly Criterion
             win_prob = wr if (wr is not None) else 0.55
-            f_star = KellyCriterionCalculator.calculate(
+
+            # Try both standard and conservative Kelly calculations
+            f_star_standard = KellyCriterionCalculator.calculate(
                 win_prob=win_prob,
                 price=target_token.last_price or 0.5,
                 half_kelly=True
             )
-            
+
+            f_star_conservative = KellyCriterionCalculator.calculate_conservative(
+                win_prob=win_prob,
+                price=target_token.last_price or 0.5,
+                half_kelly=True
+            )
+
+            # Use the more conservative calculation (smaller of the two)
+            f_star = min(f_star_standard, f_star_conservative)
+
             # Dominant and Insurance allocations
             total_budget = self.config.regime_strategy.total_budget_usd
             allocated_budget = f_star * total_budget
-            
+
             dominant_budget = allocated_budget * self.config.regime_strategy.dominant_allocation_pct
             insurance_budget = allocated_budget * self.config.regime_strategy.insurance_allocation_pct
-            
+
             signal_logger.info(f"KELLY CALCULATION:")
             signal_logger.info(f"  Win Prob: {win_prob*100:.1f}% | Price: {target_token.last_price:.4f}")
-            signal_logger.info(f"  Kelly Fraction (Half): {f_star:.4f}")
+            signal_logger.info(f"  Edge: {(win_prob - target_token.last_price)*100:.1f}%")
+            signal_logger.info(f"  Kelly Fraction (Standard): {f_star_standard:.4f}")
+            signal_logger.info(f"  Kelly Fraction (Conservative): {f_star_conservative:.4f}")
+            signal_logger.info(f"  Final Kelly Fraction (Min): {f_star:.4f}")
             signal_logger.info(f"  Total Budget: ${total_budget:.2f} | Allocated: ${allocated_budget:.2f}")
             signal_logger.info(f"  Dominant ({target_name}): ${dominant_budget:.2f}")
             signal_logger.info(f"  Insurance ({insurance_name}): ${insurance_budget:.2f}")
-            
-            if dominant_budget < 0.05:
-                signal_logger.info("Kelly allocation too small (less than $0.05). Skipping entry.")
+
+            # Check if allocation is reasonable
+            min_allocation = 0.05  # $0.05 minimum
+            if allocated_budget < min_allocation:
+                signal_logger.info(f"Kelly allocation too small (${allocated_budget:.4f} < ${min_allocation}). Skipping entry.")
+                return
+
+            # Check if edge is sufficient
+            edge = win_prob - (target_token.last_price or 0.5)
+            if edge <= 0:
+                signal_logger.info(f"No positive edge ({edge*100:.1f}%). Skipping entry.")
                 return
                 
             # Perform scaling-in execution
@@ -2554,69 +2576,132 @@ class LiveTradingBot:
                 pos.awaiting_resolution = True
                 logger.info(f"Market ended for {self.state.slug}, starting resolution tracking...")
 
-                # Start resolution polling
-                asyncio.create_task(self.resolve_position())
+                # Snapshot position for deferred resolution (FASE 1)
+                condition_id = f"{self.state.slug}_resolution"
+                self.stats.add_pending_resolution(condition_id, self.state.end_time)
 
-    async def resolve_position(self):
-        """Poll for market resolution and close position with official outcome."""
-        pos = self.stats.position
-        if not pos or not pos.awaiting_resolution:
+                # Start resolution polling task
+                self._resolve_task = asyncio.create_task(self.resolve_pending_positions())
+
+    async def resolve_pending_positions(self):
+        """Poll for market resolution of all pending positions and log closes.
+
+        Uses the safe resolve_pending mechanism instead of close_position to avoid
+        race conditions with new market sessions.
+        """
+        pending_resolutions = self.stats.pending_resolutions
+        if not pending_resolutions:
             return
 
-        logger.info(f"Starting resolution polling for {self.state.slug}")
+        logger.info(f"Starting resolution polling for {len(pending_resolutions)} pending positions")
 
-        max_polling_time = 300  # 5 minutes max polling
+        max_polling_time = 120  # 2 minutes max polling (faster than individual resolve)
         start_time = time.time()
         poll_interval = 5  # 5 seconds between polls
 
         async with aiohttp.ClientSession() as session:
             while time.time() - start_time < max_polling_time:
                 try:
-                    # Check if market is closed via Gamma API
-                    async with session.get(f"https://gamma-api.polymarket.com/markets/{pos.market_slug}") as response:
-                        if response.status == 200:
-                            market_data = await response.json()
+                    # Check each pending position
+                    for index, item in enumerate(pending_resolutions):
+                        market_slug = item["market_slug"]
 
-                            if market_data.get('closed', False):
-                                # Market closed - get official outcome
-                                outcome_prices = market_data.get('outcomePrices', [0.5, 0.5])
+                        # Check if market is closed via Gamma API
+                        async with session.get(f"https://gamma-api.polymarket.com/markets/{market_slug}") as response:
+                            if response.status == 200:
+                                market_data = await response.json()
 
-                                # Determine winner based on outcome prices
-                                if outcome_prices[0] > outcome_prices[1]:  # UP token wins
-                                    won = True if pos.token_name == "UP" else False
-                                    resolution_source = "gamma_outcome"
-                                elif outcome_prices[1] > outcome_prices[0]:  # DOWN token wins
-                                    won = True if pos.token_name == "DOWN" else False
-                                    resolution_source = "gamma_outcome"
-                                else:
-                                    # Tie - fallback to Chainlink logic
-                                    won = self._determine_win_from_chainlink(pos)
-                                    resolution_source = "chainlink_oracle"
+                                if market_data.get('closed', False):
+                                    # Market closed - get official outcome
+                                    outcome_prices = market_data.get('outcomePrices', [0.5, 0.5])
 
-                                # Close position with official outcome
-                                record = self.stats.close_position(
-                                    won=won,
-                                    resolution_source=resolution_source,
-                                    btc_anchor=0.0,  # Will be fetched if needed
-                                    btc_current=0.0
-                                )
-                                self._on_position_resolved(record)
+                                    # Determine winner based on outcome prices
+                                    if outcome_prices[0] > outcome_prices[1]:  # UP token wins
+                                        won = True if item["token_name"] == "UP" else False
+                                        resolution_source = "gamma_outcome"
+                                    elif outcome_prices[1] > outcome_prices[0]:  # DOWN token wins
+                                        won = True if item["token_name"] == "DOWN" else False
+                                        resolution_source = "gamma_outcome"
+                                    else:
+                                        # Tie - fallback to Chainlink logic
+                                        won = self._determine_win_from_chainlink(Position(
+                                            token_name=item["token_name"],
+                                            token_id=item["token_id"],
+                                            opposite_token_id=item["opposite_token_id"],
+                                            entry_price=item["entry_price"],
+                                            contracts=item["contracts"],
+                                            entry_time=item["entry_time"],
+                                            market_slug=item["market_slug"],
+                                            hedged=item.get("hedged", False),
+                                            hedge_contracts=item.get("hedge_contracts", 0),
+                                            hedge_price=item.get("hedge_price", 0.0),
+                                            min_price_seen=item.get("min_price_seen", item["entry_price"])
+                                        ))
+                                        resolution_source = "chainlink_oracle"
 
-                                if record:
-                                    logger.info(f"Position resolved: {record.won} via {resolution_source}")
+                                    # Resolve the pending position
+                                    record = self.stats.resolve_pending(
+                                        index,
+                                        won,
+                                        resolution_source,
+                                        btc_anchor=0.0,  # Will be fetched if needed
+                                        btc_current=0.0
+                                    )
+                                    self._on_position_resolved(record)
 
-                                    # In simulation mode, log the resolution
-                                    if hasattr(self, '_simulation_log_close'):
-                                        self._simulation_log_close(record, pos.hedged)
+                                    if record:
+                                        logger.info(f"Position resolved: {record.won} via {resolution_source} for {market_slug}")
 
-                                # Mark as no longer awaiting resolution
-                                pos.awaiting_resolution = False
-                                return
+                                        # In simulation mode, log the resolution
+                                        if hasattr(self, '_simulation_log_close'):
+                                            self._simulation_log_close(record, record.hedged)
+
+                                    # Remove from pending list
+                                    pending_resolutions.pop(index)
+                                    break  # Restart iteration after modification
+
+                    # If no more pending resolutions, exit
+                    if not pending_resolutions:
+                        break
 
                     # Wait before next poll
                     await asyncio.sleep(poll_interval)
 
                 except Exception as e:
+                    logger.warning(f"Error during resolution polling: {e}")
+                    await asyncio.sleep(poll_interval)
+
+        # If still pending after timeout, use Chainlink fallback for remaining
+        if pending_resolutions:
+            logger.warning(f"Max polling time reached for {len(pending_resolutions)} positions, using Chainlink fallback")
+            for index, item in enumerate(pending_resolutions):
+                won = self._determine_win_from_chainlink(Position(
+                    token_name=item["token_name"],
+                    token_id=item["token_id"],
+                    opposite_token_id=item["opposite_token_id"],
+                    entry_price=item["entry_price"],
+                    contracts=item["contracts"],
+                    entry_time=item["entry_time"],
+                    market_slug=item["market_slug"],
+                    hedged=item.get("hedged", False),
+                    hedge_contracts=item.get("hedge_contracts", 0),
+                    hedge_price=item.get("hedge_price", 0.0),
+                    min_price_seen=item.get("min_price_seen", item["entry_price"])
+                ))
+                record = self.stats.resolve_pending(
+                    index,
+                    won,
+                    "chainlink_oracle_fallback",
+                    btc_anchor=0.0,
+                    btc_current=0.0
+                )
+                self._on_position_resolved(record)
+                if record:
+                    logger.info(f"Pending resolved via Chainlink fallback: {record.won} for {item['market_slug']}")
+                pending_resolutions.pop(index)
+
+        # Clean up the task reference
+        self._resolve_task = None
                     logger.warning(f"Error during resolution polling: {e}")
                     await asyncio.sleep(poll_interval)
 

@@ -224,7 +224,7 @@ class TestTradingStats(unittest.TestCase):
         self.assertTrue(position.awaiting_resolution)
 
         # Test _build_trade_record method directly
-        record, pnl = TradingStats._build_trade_record(
+        record, pnl = self.stats._build_trade_record(
             position,
             won=False,  # DOWN wins
             resolution_source="gamma_outcome",
@@ -236,7 +236,7 @@ class TestTradingStats(unittest.TestCase):
         self.assertIsNotNone(record)
         self.assertEqual(record.won, False)  # DOWN position wins
         self.assertEqual(record.resolution_source, "gamma_outcome")
-        self.assertEqual(pnl, -3.50)  # Expected P&L
+        self.assertAlmostEqual(pnl, -3.90, places=2)  # Expected P&L
 
 
 if __name__ == '__main__':

@@ -1,0 +1,17 @@
+{
+  "trades": [],
+  "markets_seen": 93,
+  "summary": {
+    "total_pnl_usd": 0,
+    "trade_count": 0,
+    "wins": 0,
+    "losses": 0,
+    "win_rate_pct": 0.0,
+    "avg_trade_pnl_usd": 0.0,
+    "best_trade_pnl_usd": null,
+    "worst_trade_pnl_usd": null,
+    "last_close_unix": null
+  },
+  "consecutive_losses": 0,
+  "circuit_breaker_until": 0.0
+}

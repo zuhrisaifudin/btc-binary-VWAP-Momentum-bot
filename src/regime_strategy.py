@@ -164,28 +164,92 @@ class RegimeDetector:
 class KellyCriterionCalculator:
     """
     Calculates modified Kelly Criterion allocations for binary options.
+    Improved version with better risk management and minimum edge requirements.
     """
     @staticmethod
     def calculate(win_prob: float, price: float, half_kelly: bool = True) -> float:
         """
         f* = (p * (1 - P) - (1 - p) * P) / (P * (1 - P)) = (p - P) / (P * (1 - P))
+
+        Improved with:
+        - Minimum edge requirement (must have positive edge)
+        - Minimum fraction to avoid tiny allocations
+        - Maximum fraction cap for risk management
         """
         if price <= 0.01 or price >= 0.99:
             return 0.0
-            
+
         # Clip probability to reasonable bounds
         p = np.clip(win_prob, 0.01, 0.99)
         P = price
-        
-        f_star = (p - P) / (P * (1.0 - P))
-        
-        # Don't place negative allocations (e.g. if we shouldn't buy)
-        if f_star < 0:
+
+        # Calculate edge - must be positive
+        edge = p - P
+        if edge <= 0:
             return 0.0
-            
+
+        # Kelly formula
+        f_star = edge / (P * (1.0 - P))
+
+        # Apply minimum fraction to avoid tiny allocations
+        # With $20 budget, $0.05 threshold requires f_star > 0.0025
+        min_fraction = 0.0025
+        if f_star < min_fraction:
+            return 0.0
+
+        # Apply half-Kelly reduction for risk management
         if half_kelly:
             f_star *= 0.5
-            
+
+        # Cap maximum fraction at 20% for risk management
+        max_fraction = 0.20
+        f_star = min(f_star, max_fraction)
+
+        return float(np.clip(f_star, 0.0, 1.0))
+
+    @staticmethod
+    def calculate_conservative(win_prob: float, price: float, half_kelly: bool = True) -> float:
+        """
+        More conservative Kelly calculator with additional safety checks:
+        - Requires minimum win rate (55%)
+        - Requires minimum edge (2%)
+        - Stricter price range filtering
+        """
+        if price <= 0.01 or price >= 0.99:
+            return 0.0
+
+        # Additional filtering for conservative approach
+        if win_prob < 0.55:  # Minimum 55% win rate
+            return 0.0
+
+        if price < 0.30 or price > 0.70:  # Reasonable price range
+            return 0.0
+
+        # Clip probability to reasonable bounds
+        p = np.clip(win_prob, 0.01, 0.99)
+        P = price
+
+        # Calculate edge - require minimum 2% edge
+        edge = p - P
+        if edge < 0.02:  # Minimum 2% edge required
+            return 0.0
+
+        # Kelly formula
+        f_star = edge / (P * (1.0 - P))
+
+        # Apply minimum fraction to avoid tiny allocations
+        min_fraction = 0.005  # 0.5% of bankroll
+        if f_star < min_fraction:
+            return 0.0
+
+        # Apply half-Kelly reduction
+        if half_kelly:
+            f_star *= 0.5
+
+        # Cap maximum fraction at 15% for conservative approach
+        max_fraction = 0.15
+        f_star = min(f_star, max_fraction)
+
         return float(np.clip(f_star, 0.0, 1.0))
 
 class ScalingExecutionEngine:

@@ -79,14 +79,23 @@ class TestRegimeStrategy(unittest.TestCase):
         # Half-Kelly = 0.2
         fraction = KellyCriterionCalculator.calculate(win_prob=0.6, price=0.5, half_kelly=True)
         self.assertAlmostEqual(fraction, 0.2)
-        
-        # Full Kelly
+
+        # Full Kelly (capped at 20% for risk management)
         fraction_full = KellyCriterionCalculator.calculate(win_prob=0.6, price=0.5, half_kelly=False)
-        self.assertAlmostEqual(fraction_full, 0.4)
-        
+        # Should be 0.4 but capped at 0.20 (20% maximum)
+        self.assertAlmostEqual(fraction_full, 0.2)
+
         # win_prob < price -> should return 0.0
         fraction_zero = KellyCriterionCalculator.calculate(win_prob=0.4, price=0.5)
         self.assertEqual(fraction_zero, 0.0)
+
+        # Test conservative calculator with minimum win rate requirement
+        fraction_conservative = KellyCriterionCalculator.calculate_conservative(win_prob=0.6, price=0.5)
+        self.assertAlmostEqual(fraction_conservative, 0.15)  # Capped at 15%
+
+        # Test conservative calculator with win rate below 55%
+        fraction_below_threshold = KellyCriterionCalculator.calculate_conservative(win_prob=0.54, price=0.5)
+        self.assertEqual(fraction_below_threshold, 0.0)
 
     def test_regime_detector(self):
         self.assertEqual(RegimeDetector.detect(0.6, 100.0), "TRENDING")
