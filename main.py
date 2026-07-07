@@ -2702,20 +2702,6 @@ class LiveTradingBot:
 
         # Clean up the task reference
         self._resolve_task = None
-                    logger.warning(f"Error during resolution polling: {e}")
-                    await asyncio.sleep(poll_interval)
-
-            # Max polling time reached - fallback to Chainlink
-            logger.warning(f"Max polling time reached for {self.state.slug}, using Chainlink fallback")
-            won = self._determine_win_from_chainlink(pos)
-            record = self.stats.close_position(
-                won=won,
-                resolution_source="chainlink_oracle_fallback",
-                btc_anchor=0.0,
-                btc_current=0.0
-            )
-            self._on_position_resolved(record)
-            pos.awaiting_resolution = False
 
     def _determine_win_from_chainlink(self, pos: Position) -> bool:
         """Determine win/loss using Chainlink BTC price logic."""
