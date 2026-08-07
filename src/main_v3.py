@@ -107,9 +107,9 @@ async def startup_event():
         # Validasi guardrail mode
         guardrail_mode = _config.get("guardrail", {}).get("mode", "risk_free_only")
         if guardrail_mode == "off":
-            logger.warning("⚠️  GUARDRAIL MODE OFF — DILARANG UNTUK LIVE TRADING!")
+            logger.warning("[WARN] GUARDRAIL MODE OFF — DILARANG UNTUK LIVE TRADING!")
         else:
-            logger.info(f"✓ Guardrail mode: {guardrail_mode}")
+            logger.info(f"[OK] Guardrail mode: {guardrail_mode}")
             
     except Exception as e:
         logger.error(f"Failed to load config: {e}")
@@ -161,9 +161,9 @@ async def startup_event():
     logger.info("Connection pool started")
     
     logger.info("=" * 60)
-    logger.info("✓ Bot V3 startup complete")
-    logger.info("✓ API docs: http://localhost:8000/docs")
-    logger.info("✓ WebSocket: ws://localhost:8000/v1/ws/dashboard")
+    logger.info("[OK] Bot V3 startup complete")
+    logger.info("[OK] API docs: http://localhost:8000/docs")
+    logger.info("[OK] WebSocket: ws://localhost:8000/v1/ws/dashboard")
     logger.info("=" * 60)
 
 
