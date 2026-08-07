@@ -11,7 +11,9 @@ Atau untuk production:
 import asyncio
 import logging
 import sys
+import os
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 from fastapi import FastAPI
@@ -30,13 +32,17 @@ from src.workers.market_worker import WorkerManager, create_worker_manager
 
 import yaml
 
+# Ensure logs directory exists
+LOGS_DIR = Path("logs")
+LOGS_DIR.mkdir(exist_ok=True)
+
 # Setup logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     handlers=[
         logging.StreamHandler(sys.stdout),
-        logging.FileHandler("logs/bot_v3.log")
+        logging.FileHandler(LOGS_DIR / "bot_v3.log")
     ]
 )
 logger = logging.getLogger(__name__)
