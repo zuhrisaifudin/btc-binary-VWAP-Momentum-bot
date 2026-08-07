@@ -226,7 +226,12 @@ class UserStream:
         """Koneksi单次 dengan autentikasi."""
         headers = {"X-API-Key": self.api_key}
         
-        async with websockets.connect(self.ws_url, extra_headers=headers) as ws:
+        # Perbaikan kompatibilitas websockets v12+
+        # Menggunakan additional_headers sebagai pengganti extra_headers
+        async with websockets.connect(
+            self.ws_url, 
+            additional_headers=headers
+        ) as ws:
             self._ws = ws
             self._reconnect_count = 0
             
