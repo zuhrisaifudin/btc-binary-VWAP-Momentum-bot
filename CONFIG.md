@@ -1,287 +1,426 @@
-# Configuration Guide
+# Configuration Guide — Bot V3 (FastAPI Control Plane + Worker Event-Driven)
 
-Part of the **[PolyBullLabs Polymarket suite](https://github.com/PolyBullLabs/polymakret-5min-15min-1hour-arbitrage-bot)** · [@terauss](https://t.me/terauss) · [Suite README (all bots)](../README.md)
+**Dokumen ini adalah acuan konfigurasi untuk Arsitektur Bot V3.** 
+Jika Anda masih menggunakan V2, lihat dokumentasi legacy di `docs/legacy/`.
 
-This file explains **every parameter** in `config.json`. The bot is highly configurable -- you can fine-tune the strategy, risk, execution speed, hedging, and notifications without touching any code.
-
----
-
-## market -- Which Polymarket window to trade
-
-```
-"interval_minutes": 5
-```
-
-**BTC up/down market length on Polymarket.** Must be **5** or **15**.
-
-- **5** — slug pattern `btc-updown-5m-<unix_start>` (300s window). Example strategy: `min_elapsed_sec` ~150–210, `no_entry_before_end_sec` ~90–120.
-- **15** — slug pattern `btc-updown-15m-<unix_start>` (900s window). Example strategy: `min_elapsed_sec` ~480–530, `no_entry_before_end_sec` ~300–335.
-
-The bot aligns Chainlink anchor resets, market discovery, and elapsed-time logic to this interval. **Always** set `min_elapsed_sec` and `no_entry_before_end_sec` so they fit inside the market length (e.g. for 5m, `min_elapsed_sec` must be &lt; 300).
+V3 memperkenalkan arsitektur **event-driven** dengan **FastAPI sebagai control plane**, 
+**WebSocket untuk data real-time**, dan **guardrail rumus PnL** yang ketat sebelum setiap order.
 
 ---
 
-## simulation -- Paper trading (no real money)
+## Ringkasan Perubahan V2 → V3
 
-```
-"enabled": false
-```
-
-**When `true`:** the bot still connects to market WebSockets, RTDS Chainlink, runs the dashboard, and evaluates the same entry rules. **No** orders are sent to Polymarket, **no** User WebSocket for fills, **no** auto-redeemer loop. Entries are logged as instant hypothetical fills at **best ask + `entry.price_offset`**, subject to `max_entry_price` and the same contract sizing as live. Optional hedge is simulated as a placed GTD with id `SIM-HEDGE` (no on-chain or CLOB effect).
-
-```
-"separate_trading_log": true,
-"trading_log_path": "logs/trading_log_sim.json"
-```
-
-If `separate_trading_log` is **true**, simulated P&L and trades are written only to `trading_log_path`, so your live `logs/trading_log.json` stays untouched. Set to **false** to append simulation results to the same file as live (not recommended if you also run live).
-
-**Trading history for analysis (simulation only):**
-
-- `history_csv_path` — Append-only CSV with **OPEN** rows (each simulated entry) and **CLOSE** rows (each resolved position). CLOSE rows include **trade_pnl_usd**, **cumulative_pnl_usd** after that trade, **win_rate_pct**, and **total_closed_trades**. Open in Excel / pandas.
-- `history_jsonl_path` — One JSON object per line (`type`: `open` or `close`) for streaming tools. Set to `""` to disable.
-- `history_summary_path` — Rewritten after every close: rolling **summary** (total PnL, wins/losses, win rate, best/worst trade) plus the full **trades** array (same data as `trading_log_path`, convenient for a single analysis file).
-
-The main `trading_log_path` JSON also includes a **`summary`** block (totals and win rate) on each save, for both live and sim logs.
-
-**Credentials:** With `simulation.enabled` true, `PRIVATE_KEY` and Polymarket API keys in `.env` are **not** required. You can still set Telegram tokens for notifications.
+| Komponen | V2 (Legacy) | V3 (Target) |
+|----------|-------------|-------------|
+| **Data fill** | REST polling (lag 100ms–1s) | **WebSocket** (~50–150ms) |
+| **Order book** | REST read | **WS book in-memory** |
+| **Cek pra-order** | risk/inventory sederhana | **Guardrail rumus** `worst_case` + `Pu+Pd<1` |
+| **Kontrol** | CLI / dashboard Rich | **FastAPI API** + WebSocket UI |
+| **Eksekusi** | Loop monolitik | **MarketWorker per market** (single writer) |
+| **Mode guardrail** | Tidak ada | `risk_free_only` | `spread_positive` | `off` |
 
 ---
 
-## strategy -- When to enter a trade
+## 1. Guardrail Config — Inti Keamanan V3
 
-These parameters control **which signals the bot acts on**. Think of them as filters: a trade is only placed when ALL conditions pass simultaneously.
+Ini adalah konfigurasi **paling penting** di V3. Guardrail menolak order yang berpotensi rugi besar.
 
-```
-"min_price": 0.75
-```
-**Minimum token price to enter.** The bot only buys tokens priced at or above this value. Lower prices mean higher potential profit but lower probability of winning. At $0.75, you need a 75% win rate to break even. Range: 0.50 - 0.95. Start with 0.75.
-
-```
-"max_price": 0.88
-```
-**Maximum token price to enter.** The bot rejects tokens priced above this. Higher prices mean higher probability but tiny profit margin. At $0.88, you profit only $0.12 per contract on a win but lose $0.88 on a loss (need 88% win rate). Range: 0.80 - 0.95. Start with 0.88.
-
-```
-"min_elapsed_sec": 530
-```
-**Minimum seconds elapsed since market opened before allowing entry.** Each market lasts 900 seconds (15 min). This prevents entering too early when the market direction is unclear. At 530, the bot waits ~8.8 minutes. Range: 300 - 800. Higher = safer but fewer opportunities.
-
-```
-"min_deviation_pct": 3
-```
-**Minimum VWAP deviation (%) to trigger a signal.** VWAP = volume-weighted average price. Deviation measures how far the current price has moved from this average. A deviation of 3% means the token price is 3% above its recent average, indicating strong directional movement. Range: 0 - 15. Set to 0 to disable this filter. Higher = stricter, fewer trades.
-
-```
-"max_deviation_pct": 100
-```
-**Maximum VWAP deviation (%) allowed.** Rejects signals where deviation is abnormally high (potential spike/manipulation). Set to 100 to effectively disable the upper bound. To cap, try 15-25. Range: must be greater than min_deviation_pct.
-
-```
-"no_entry_before_end_sec": 335
-```
-**Stop entering trades if fewer than this many seconds remain.** At 335, the bot stops entering after ~9 min 25 sec (with 5 min 35 sec left). This protects against entering too late when there is not enough time for the position to be meaningful. Range: 60 - 500.
-
-> **Entry window example:** With min_elapsed_sec=530 and no_entry_before_end_sec=335, the bot can only enter between 530s and 565s elapsed -- a 35-second window each market.
-
-```
-"momentum_window_sec": 60
-```
-**Lookback window for momentum calculation (seconds).** Momentum compares current price to the price N seconds ago. At 60, it asks: "Is the price higher than 1 minute ago?" Shorter windows = more reactive, noisier. Longer = smoother, slower to react. Range: 15 - 300.
-
-```
-"vwap_window_sec": 30
-```
-**Lookback window for VWAP calculation (seconds).** Only trades from the last N seconds are used to compute VWAP. Shorter = more responsive to recent trades. Longer = smoother average. Range: 10 - 120.
-
-```
-"win_rate_csv": "data/win_rate.csv"
-```
-**Path to the historical win rate table.** A CSV file containing win probabilities by price range and time bin. The bot uses this to display win rate on the dashboard. Generally no need to change this unless you build your own win rate data.
-
----
-
-## entry -- How to execute orders
-
-These parameters control **order mechanics**: how much to bet, how aggressively to fill, and what to do on failure.
-
-```
-"bet_amount_usd": 5
-```
-**How much USD to risk per trade.** The bot divides this by the entry price to get the number of contracts. Example: $5 at price $0.80 = 6 contracts. Start small ($1-5) while learning. Scale up only after consistent results. Range: 1 - any amount you are comfortable losing.
-
-```
-"price_offset": 0.02
-```
-**Price offset added to best bid for FAK orders.** FAK (Fill-And-Kill) orders must cross the spread to fill immediately. An offset of 0.02 means: if best bid is $0.80, the order is placed at $0.82. Higher offset = more aggressive fill but worse entry price. Range: 0.01 - 0.05.
-
-```
-"order_type": "FAK"
-```
-**Order type for entry.** FAK = Fill-And-Kill. The order fills immediately at the specified price or gets cancelled. This is the recommended type for fast-moving 15-minute markets. Alternative: "GTC" (Good-Till-Cancel) which stays on the book.
-
-```
-"max_retries": 3
-```
-**How many times to retry a failed order.** If the first attempt fails (rejected, no fill), the bot retries up to this many times. Range: 1 - 10. More retries = better chance of filling but uses more time.
-
-```
-"retry_delay_ms": 300
-```
-**Milliseconds to wait between retry attempts.** Range: 100 - 2000. Shorter = faster retries. Don't set too low or you may hit rate limits.
-
-```
-"fill_timeout_ms": 1000
-```
-**How long to wait for fill confirmation (ms).** After placing a FAK order, the bot waits this long for a WebSocket fill message. If no fill arrives in time, it enters recovery mode. Range: 500 - 5000.
-
-```
-"min_contracts": 5
-```
-**Minimum number of contracts per order.** Polymarket requires at least 5 contracts. If bet_amount_usd / price results in fewer than 5 contracts, the order is skipped. Generally no need to change.
-
-```
-"min_order_usd": 1
-```
-**Minimum order value in USD.** Orders below this value are skipped. Generally no need to change.
-
-```
-"max_entry_price": 0.88
-```
-**Hard price ceiling for entry.** Even if the signal says BUY, the order is rejected if the execution price exceeds this. Acts as a safety net. Should be equal to or less than strategy.max_price.
-
-```
-"ws_recovery_timeout_sec": 10
-```
-**Timeout for WebSocket fill recovery (seconds).** When an order times out, the bot checks the User WebSocket for fills. This is how long it waits during recovery. Range: 5 - 30.
-
----
-
-## hedge -- Automatic hedging (advanced)
-
-Hedging places a cheap order on the **opposite** token after entry. If your main trade loses, the hedge may fill and partially offset the loss.
-
-```
-"enabled": false
-```
-**Enable or disable automatic hedging.** Set to true to activate. When enabled, after each entry the bot places a GTD order on the opposite token. Recommended to leave false until you understand the mechanics.
-
-```
-"hedge_price": 0.02
-```
-**Price to place the hedge order at.** The hedge buys the opposite token at this price. At $0.02, you pay $0.02 per contract. If your main trade loses, the opposite token resolves to $1.00, netting $0.98 per contract. The hedge only fills if the market strongly moves in your favor (opposite token drops to $0.02). Range: 0.01 - 0.10.
-
-```
-"order_type": "GTD"
-```
-**Hedge order type.** GTD = Good-Till-Date. A limit order that sits on the book until it fills or expires. Expires in 1 hour (market resolves in 15 minutes). No need to change.
-
-```
-"max_retries": 3
-```
-**Retry count for hedge order placement.** If hedge placement fails, retry up to this many times.
-
-```
-"retry_delay_ms": 1000
-```
-**Delay between hedge retry attempts (ms).** Hedge placement is less time-critical than entry, so a longer delay is fine.
-
----
-
-## redeem -- Automatic on-chain redemption
-
-After a market resolves, winning positions must be redeemed on the blockchain to collect your payout.
-
-```
-"enabled": true
-```
-**Enable automatic redemption.** When true, the bot periodically checks for resolved positions and redeems them. If false, you must redeem manually on polymarket.com. Recommended: true.
-
-```
-"interval_seconds": 180
-```
-**How often to check for redeemable positions (seconds).** Every 180 seconds (3 minutes), the bot scans for positions that can be redeemed. Range: 60 - 600. Lower = more frequent checks but more API calls.
-
-```
-"auto_confirm": true
-```
-**Automatically confirm redemptions.** When true, redemptions happen without manual approval. When false, redemptions are logged but not executed.
-
----
-
-## telegram -- Notifications
-
-Optional Telegram integration for trade alerts and equity charts. Requires TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in .env.
-
-```
-"enabled": false
-```
-**Enable Telegram notifications.** Set to true after configuring bot token and chat ID in .env. You will receive messages on trade entry, market end results, and periodic equity charts.
-
-```
-"chart_every_n_trades": 5
-```
-**Send an equity chart every N trades.** After every 5 trades (by default), the bot generates a P&L chart and sends it to your Telegram. Range: 1 - 50.
-
----
-
-## logging -- Log settings
-
-```
-"level": "INFO"
-```
-**Logging verbosity.** Options: "DEBUG" (very verbose), "INFO" (normal), "WARNING" (errors only). Use DEBUG for troubleshooting, INFO for normal operation.
-
-```
-"file_rotation_hours": 3
-```
-**Rotate log files every N hours.** Prevents log files from growing indefinitely. Range: 1 - 24.
-
----
-
-## Quick Presets
-
-### Conservative (low risk, fewer trades)
 ```json
 {
-  "strategy": {
-    "min_price": 0.80,
-    "max_price": 0.85,
-    "min_elapsed_sec": 600,
-    "min_deviation_pct": 5,
-    "no_entry_before_end_sec": 300
-  },
-  "entry": { "bet_amount_usd": 2 },
-  "hedge": { "enabled": true }
+  "market_maker": {
+    "guardrail": {
+      "mode": "risk_free_only",
+      "max_imbalance_shares": 14,
+      "pair_margin": 0.02
+    }
+  }
 }
 ```
 
-### Moderate (balanced)
+### `mode` — Mode disiplin guardrail
+
+| Mode | Deskripsi | Kapan dipakai |
+|------|-----------|---------------|
+| `"risk_free_only"` | **Place order HANYA jika `worst_case >= 0`** (posisi bebas rugi apa pun hasil market) | **Live trading wajib** |
+| `"spread_positive"` | Place order jika `Pu + Pd < 1` (pasangan untung), tapi masih bisa rugi jika imbalance besar | Paper testing / replay |
+| `"off"` | Tidak ada guardrail (meniru Bonereaper apa adanya) | **ANALISIS SAJA — JANGAN LIVE** |
+
+**Rumus yang dipakai:**
+- `worst_case = min(Su, Sd) - modal` — harus ≥ 0 untuk mode `risk_free_only`
+- `Pu + Pd < 1` — syarat harga pasangan untung (spread positif)
+- `imbalance = |Su - Sd|` — dibatasi `max_imbalance_shares`
+
+### `max_imbalance_shares` — Batas exposure arah
+
+Membatasi selisih share Up dan Down yang tidak berpasangan. Contoh:
+- `Su = 100`, `Sd = 86` → `imbalance = 14` (masih OK)
+- `Su = 100`, `Sd = 80` → `imbalance = 20` (**DITOLAK** jika max = 14)
+
+Nilai default **14** berdasarkan analisis empiris Bonereaper (bucket 5-menit BTC).
+
+### `pair_margin` — Margin aman untuk `Pu + Pd`
+
+Order ditolak jika `Pu + Pd >= 1 - pair_margin`. Default **0.02** berarti:
+- Pasangan harus dibeli dengan diskon minimal **2¢** di bawah $1.
+- Contoh: `Pu = 0.40`, `Pd` harus ≤ `0.58` (bukan 0.60).
+
+---
+
+## 2. Capital Config — Batas Modal Sesi
+
 ```json
 {
-  "strategy": {
-    "min_price": 0.75,
-    "max_price": 0.88,
-    "min_elapsed_sec": 530,
-    "min_deviation_pct": 3,
-    "no_entry_before_end_sec": 335
-  },
-  "entry": { "bet_amount_usd": 10 },
-  "hedge": { "enabled": true }
+  "market_maker": {
+    "capital": {
+      "session_capital_usd": 20,
+      "reserve_usd": 4,
+      "max_order_usd": 2.50,
+      "min_shares": 5
+    }
+  }
 }
 ```
 
-### Aggressive (more trades, higher risk)
+### `session_capital_usd` — Budget simulasi per sesi
+
+**BUKAN** saldo venue otomatis. Ini batas modal yang boleh dipakai bot dalam satu sesi trading.
+- Default: **$20** (untuk testing/paper)
+- Live: sesuaikan dengan bankroll Anda (mis. $100–$500)
+
+**Rumus budget tersedia:**
+```
+budget_sim = session_capital_usd - reserve_usd - modal_terkunci
+modal_terkunci = Su×Pu + Sd×Pd
+```
+
+### `reserve_usd` — Dana yang tidak boleh dipakai
+
+Selalu sisakan dana untuk keadaan darurat atau fee tak terduga.
+- Default: **$4** (20% dari $20)
+- Live: 10–20% dari `session_capital_usd`
+
+### `max_order_usd` — Batas nominal satu leg BUY
+
+Membatasi ukuran order tunggal untuk menghindari over-commitment.
+- Default: **$2.50** (dari analisis Bonereaper: rata-rata fill kecil)
+- Formula: `size = min(max_order_usd / harga, budget_tersedia)`
+
+### `min_shares` — Minimum share per order
+
+Contoh parameter; validasi minimum venue tetap wajib.
+- Default: **5** (sesuai contoh simulasi)
+- Venue mungkin punya aturan berbeda — selalu cek `GET /clob-markets/{condition_id}`
+
+---
+
+## 3. Runtime Config — Performa & Reliabilitas
+
 ```json
 {
-  "strategy": {
-    "min_price": 0.70,
-    "max_price": 0.90,
-    "min_elapsed_sec": 480,
-    "min_deviation_pct": 0,
-    "no_entry_before_end_sec": 120
-  },
-  "entry": { "bet_amount_usd": 50 },
-  "hedge": { "enabled": false }
+  "market_maker": {
+    "runtime": {
+      "book_debounce_ms": 25,
+      "fill_queue_max": 1000,
+      "reconnect_max_delay_s": 10,
+      "shutdown_timeout_s": 15
+    }
+  }
 }
 ```
+
+### `book_debounce_ms` — Debounce requote
+
+Membatasi frekuensi cancel-replace saat book berubah cepat.
+- Default: **25 ms** (cukup cepat untuk 5-menit BTC)
+- Terlalu rendah → banyak order cancel (fee risk)
+- Terlalu tinggi → quote basi
+
+### `fill_queue_max` — Batas antrean fill event
+
+Fill **tidak boleh hilang** (fail-closed). Queue penuh = pause + cancel all.
+- Default: **1000** event
+- Monitor metric `fill_queue_depth`
+
+### `reconnect_max_delay_s` — Maksimum delay reconnect WS
+
+Exponential backoff dengan jitter saat WebSocket putus.
+- Default: **10 detik**
+- Pastikan cukup cepat untuk catch-up snapshot
+
+### `shutdown_timeout_s` — Timeout shutdown aman
+
+Saat stop: pause → cancel semua order → await task → tulis snapshot.
+- Default: **15 detik**
+- Jika gagal cancel → exit dengan alarm
+
+---
+
+## 4. Schedule Config — Profil Waktu Eksekusi
+
+Berdasarkan analisis **80.188 fill nyata**: agresivitas berubah menurut detik ke expiry.
+
+```json
+{
+  "market_maker": {
+    "schedule": {
+      "taker_until_s": 295,
+      "maker_only_below_s": 60,
+      "taper_size_below_s": 15,
+      "taker_open_max": 0.56
+    }
+  }
+}
+```
+
+### `taker_until_s` — Seed posisi awal (TAKER agresif)
+
+- **Detik 295–300 (buka)**: **82% TAKER** — rebut posisi cepat saat book tipis
+- Default: **295** (hanya 5 detik pertama)
+- Setelah itu: transisi ke MAKER-dominan
+
+### `maker_only_below_s` — Stop menyeberang spread
+
+- **Detik 0–60**: **MAKER-only** (haram taker, bid pasif saja)
+- Default: **60**
+- Mendekati expiry: likuiditas keluar, jadi penyedia likuiditas
+
+### `taper_size_below_s` — Kecilkan size di detik akhir
+
+- **Detik 0–15**: size mengecil (cuma tangkap cash-out)
+- Default: **15**
+
+### `taker_open_max` — Peluang taker maksimum saat buka
+
+- Default: **0.56** (56% peluang taker di 270–300s)
+- Kurva menurun monoton: `p_agresif(t) ≈ clamp((t - 60) / 240, 0, 0.56)`
+
+**Visualisasi profil waktu:**
+
+```
+t=300s BUKA ──────────────────────────────────► t=0s SETTLE
+│                                                    │
+│◄─ SEED ─►│◄────── GRID MAKER ──────►│◄─ MAKER-ONLY ─►│
+  82% taker   56%→23% agresif           14%→0% agresif
+```
+
+---
+
+## 5. API Config — FastAPI Control Plane
+
+```json
+{
+  "market_maker": {
+    "api": {
+      "enabled": true,
+      "host": "127.0.0.1",
+      "port": 8000
+    }
+  }
+}
+```
+
+### `enabled` — Aktifkan FastAPI server
+
+- Default: **true** (V3 wajib pakai API untuk kontrol)
+- Jika false: hanya worker jalan, tidak ada kontrol eksternal
+
+### `host` — Bind address
+
+- Default: **127.0.0.1** (localhost only)
+- Production: bind ke jaringan privat, **JANGAN publik**
+- CORS publik **dimatikan** default
+
+### `port` — Port HTTP/WebSocket
+
+- Default: **8000**
+- Endpoint: `/health/live`, `/health/ready`, `/v1/*`, `/metrics`, `/v1/ws/dashboard`
+
+**Environment variable wajib (JANGAN di config.json):**
+```bash
+BOT_API_TOKEN=your_secret_token_here
+```
+
+---
+
+## 6. Price Dynamics — Harga Masuk Dinamis
+
+Harga bid **tidak statis** — dihitung dari 3 batas:
+
+### 1. Batas dari RUMUS (jaga `Pu+Pd < 1`)
+```python
+p_bid_UP_max   = 1 - Pd - margin      # supaya Pu' + Pd tetap < 1
+p_bid_DOWN_max = 1 - Pu - margin
+```
+
+**Bahaya jika dilanggar:** 
+- Pegang Up avg 0.05, beli Down @ 0.98 → `Pu+Pd = 1.03 > 1` → **pasangan rugi**
+
+### 2. Batas dari SALDO (bankroll)
+```python
+size_bid = f(saldo_tersedia, max_exposure, harga)
+```
+- Saldo menipis → size mengecil & ladder lebih pendek
+
+### 3. Batas dari IMBALANCE + WAKTU
+```python
+if |Su-Sd| ≈ max_imbalance di sisi X:
+    hanya bid sisi X di harga jauh lebih murah
+if mendekati expiry:
+    ikuti book ke ekstrem, TAPI tetap ≤ cap rumus
+```
+
+**Harga final = minimum dari semua batas:**
+```python
+def harga_bid(sisi, book, inv, saldo, cfg):
+    p_target = book.mid_bid(sisi)                     # dari quotes.py
+    p_cap    = 1 - inv.p_lawan(sisi) - cfg.margin     # batas rumus
+    p        = min(p_target, p_cap)                   # jangan langgar rumus
+    size     = size_dari_saldo(saldo, p, cfg)         # batas bankroll
+    
+    if size <= 0 or inv.imbalance(sisi) >= cfg.max_imbalance:
+        return None                                   # skip
+    
+    return p, size
+```
+
+---
+
+## 7. Struktur config.json Lengkap (V3 Target)
+
+```json
+{
+  "market_maker": {
+    "guardrail": {
+      "mode": "risk_free_only",
+      "max_imbalance_shares": 14,
+      "pair_margin": 0.02
+    },
+    "capital": {
+      "session_capital_usd": 20,
+      "reserve_usd": 4,
+      "max_order_usd": 2.50,
+      "min_shares": 5
+    },
+    "runtime": {
+      "book_debounce_ms": 25,
+      "fill_queue_max": 1000,
+      "reconnect_max_delay_s": 10,
+      "shutdown_timeout_s": 15
+    },
+    "schedule": {
+      "taker_until_s": 295,
+      "maker_only_below_s": 60,
+      "taper_size_below_s": 15,
+      "taker_open_max": 0.56
+    },
+    "api": {
+      "enabled": true,
+      "host": "127.0.0.1",
+      "port": 8000
+    }
+  }
+}
+```
+
+**Environment variables (wajib, jangan di commit):**
+```bash
+# .env
+BOT_API_TOKEN=secret_operator_token
+POLYMARKET_API_KEY=...
+POLYMARKET_API_SECRET=...
+PRIVATE_KEY=0x...
+```
+
+---
+
+## 8. Presets — Konfigurasi Siap Pakai
+
+### Conservative (Testing/Paper)
+```json
+{
+  "market_maker": {
+    "guardrail": { "mode": "risk_free_only" },
+    "capital": {
+      "session_capital_usd": 20,
+      "reserve_usd": 4,
+      "max_order_usd": 2.50
+    },
+    "schedule": {
+      "taker_until_s": 295,
+      "maker_only_below_s": 60
+    }
+  }
+}
+```
+
+### Moderate (Live Kecil)
+```json
+{
+  "market_maker": {
+    "guardrail": { 
+      "mode": "risk_free_only",
+      "max_imbalance_shares": 20
+    },
+    "capital": {
+      "session_capital_usd": 100,
+      "reserve_usd": 20,
+      "max_order_usd": 5.00
+    }
+  }
+}
+```
+
+### Aggressive (Hanya Analisis — JANGAN LIVE)
+```json
+{
+  "market_maker": {
+    "guardrail": { "mode": "off" },
+    "capital": {
+      "session_capital_usd": 500,
+      "max_order_usd": 25.00
+    }
+  }
+}
+```
+⚠️ **Mode `off` meniru Bonereaper: 85.4% market BUKAN risk-free, 53.1% `Pu+Pd >= 1`. 
+Hanya untuk replay/analisis!**
+
+---
+
+## 9. Validasi & Preflight
+
+Sebelum live, V3 menjalankan **preflight check**:
+1. ✅ Validasi config (mode, margin, imbalance)
+2. ✅ Cek saldo venue ≥ `session_capital_usd`
+3. ✅ Test koneksi WS market & user
+4. ✅ Probe CLOB gateway (post-only test)
+5. ✅ Verifikasi market catalog (Up/Down token mapping)
+
+Jika gagal → `/health/ready` returns **503**, worker tetap **PAUSED**.
+
+---
+
+## 10. Reload Konfig Dinamis
+
+Endpoint `POST /v1/config/reload` mengizinkan reload parameter **tanpa restart**:
+- ✅ `guardrail.pair_margin`
+- ✅ `capital.max_order_usd` (turunkan saja, naikkan butuh restart)
+- ✅ `schedule.maker_only_below_s`
+- ❌ **Tidak boleh**: mode guardrail, credential, market aktif, paper→live
+
+Reload memicu **cancel/requote atomik** jika perubahan memengaruhi quote aktif.
+
+---
+
+## Referensi Lanjutan
+
+- **Arsitektur lengkap**: [`docs/ARSITEKTUR_V3.md`](docs/ARSITEKTUR_V3.md)
+- **Rumus PnL detail**: `src/mm/pnl_formula.py`
+- **Guardrail logic**: `src/mm/guardrail.py`
+- **API endpoints**: `docs/README.md` → section API Contracts
+- **Simulasi akumulasi**: `scripts/simulate_paired_orders.py`
+
+---
+
+**Peringatan:** Dokumentasi lama (`CONFIG.md` V2) masih ada di `docs/legacy/CONFIG_V2.md` untuk referensi migrasi. 
+Semua deployment baru **WAJIB** mengikuti panduan V3 ini.
