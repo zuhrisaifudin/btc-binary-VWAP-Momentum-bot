@@ -1,0 +1,6 @@
+interface:
+  display_name: "Btc Binary VWAP Momentum Bot"
+  short_description: "Repo-specific patterns and workflows for btc-binary-VWAP-Momentum-bot"
+  default_prompt: "Use the btc-binary-VWAP-Momentum-bot repo skill to follow existing architecture, testing, and workflow conventions."
+policy:
+  allow_implicit_invocation: true
