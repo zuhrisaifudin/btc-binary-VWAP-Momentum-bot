@@ -1,0 +1,175 @@
+# Bot V3 — Production Configuration
+# Copy to config/config.yaml and customize for your environment
+
+# ============================================================================
+# GUARDRAIL CONFIGURATION (CRITICAL FOR LIVE TRADING)
+# ============================================================================
+guardrail:
+  # Mode: "risk_free_only" (WAJIB untuk live!), "spread_positive", atau "off" (DILARANG!)
+  mode: risk_free_only
+  
+  # Maximum imbalance sebelum stop new orders
+  max_imbalance_shares: 14
+  
+  # Margin aman untuk pair pricing
+  pair_margin: 0.02
+  
+  # Minimum spread yang diterima (untuk mode spread_positive)
+  min_spread: 0.01
+
+# ============================================================================
+# CAPITAL MANAGEMENT
+# ============================================================================
+capital:
+  # Total modal awal (USDC)
+  initial_capital_usd: 1000.0
+  
+  # Maximum exposure per market (% dari capital)
+  max_exposure_per_market_pct: 10.0
+  
+  # Maximum total exposure (% dari capital)
+  max_total_exposure_pct: 50.0
+  
+  # Reserved cash untuk emergencies (%)
+  reserved_cash_pct: 20.0
+
+# ============================================================================
+# RUNTIME CONFIGURATION
+# ============================================================================
+runtime:
+  # Log level: DEBUG, INFO, WARNING, ERROR
+  log_level: INFO
+  
+  # Enable metrics export ke Prometheus
+  metrics_enabled: true
+  metrics_port: 9090
+  
+  # Enable WebSocket dashboard
+  dashboard_enabled: true
+  dashboard_port: 8000
+  
+  # Auto-reconnect settings
+  auto_reconnect: true
+  reconnect_delay_sec: 5
+  max_reconnect_attempts: 10
+
+# ============================================================================
+# SCHEDULE CONFIGURATION (Profil Waktu Eksekusi)
+# ============================================================================
+schedule:
+  # Durasi fase taker di awal (detik)
+  # Data empiris: 73% fill terjadi dalam 5s pertama
+  taker_until_s: 295  # 5 menit
+  
+  # Transisi ke maker-only setelah X detik tersisa
+  # Data empiris: maker-only <60s memiliki fill rate tertinggi
+  maker_only_below_s: 60
+  
+  # Tapering mulai X detik sebelum expiry
+  taper_start_s: 120
+  
+  # Stop semua order X detik sebelum expiry
+  hard_stop_s: 30
+
+# ============================================================================
+# MARKET CONFIGURATION
+# ============================================================================
+markets:
+  - slug: BTC-DEC31
+    condition: "BTC > $100K on Dec 31?"
+    enabled: true
+    max_position_usd: 100.0
+    
+  - slug: ETH-DEC31
+    condition: "ETH > $4K on Dec 31?"
+    enabled: true
+    max_position_usd: 100.0
+
+# ============================================================================
+# API CONFIGURATION (Polymarket CLOB)
+# ============================================================================
+polymarket:
+  api_url: https://clob.polymarket.com
+  chain_id: 137  # Polygon
+  signature_type: 0  # EOA signature
+  
+  # Credentials (set via environment variables in production!)
+  # POLYMARKET_API_KEY
+  # POLYMARKET_API_SECRET
+  # POLYMARKET_API_PASSPHRASE
+  # POLYMARKET_PRIVATE_KEY
+
+# ============================================================================
+# WEBSOCKET CONFIGURATION
+# ============================================================================
+websocket:
+  # Market stream (order book + trades)
+  market_ws_url: wss://clob.polymarket.com/ws
+  
+  # User stream (fills + orders)
+  user_ws_url: wss://clob.polymarket.com/ws
+  
+  # Heartbeat interval (detik)
+  heartbeat_interval: 30
+  
+  # Timeout tanpa response (detik)
+  timeout: 60
+
+# ============================================================================
+# TELEGRAM NOTIFICATION (Optional)
+# ============================================================================
+telegram:
+  enabled: false
+  bot_token: ""  # Set via TELEGRAM_BOT_TOKEN env var
+  chat_id: ""    # Set via TELEGRAM_CHAT_ID env var
+  
+  # Events untuk notification
+  notify_on_fill: true
+  notify_on_error: true
+  notify_on_guardrail_rejection: false
+  daily_summary: true
+
+# ============================================================================
+# OBSERVABILITY (Prometheus + Grafana)
+# ============================================================================
+observability:
+  prometheus:
+    enabled: true
+    port: 9090
+    scrape_interval: 15s
+  
+  grafana:
+    enabled: true
+    port: 3000
+    admin_password: ""  # Set via GRAFANA_ADMIN_PASSWORD env var
+  
+  alerting:
+    enabled: false
+    rules:
+      - name: HighImbalance
+        condition: "bot_imbalance > 14"
+        severity: warning
+        
+      - name: GuardrailRejections
+        condition: "rate(bot_guardrail_rejections_total[5m]) > 10"
+        severity: critical
+        
+      - name: WorkerDown
+        condition: "bot_worker_status == 0"
+        severity: critical
+
+# ============================================================================
+# DEPLOYMENT ENVIRONMENT
+# ============================================================================
+environment:
+  # development, staging, production
+  name: production
+  
+  # Enable debug features (disable in production!)
+  debug_mode: false
+  
+  # Simulation mode (no real orders)
+  simulation_mode: false
+  
+  # Dry run (calculate but don't send orders)
+  dry_run: false

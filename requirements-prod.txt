@@ -1,0 +1,28 @@
+# Production dependencies for Bot V3
+# Separate from dev dependencies for smaller Docker images
+
+# Prometheus metrics
+prometheus-client>=0.19.0
+
+# Production server
+gunicorn>=21.0.0
+
+# Security
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+
+# Database (optional, for persistent state)
+# sqlalchemy>=2.0.0
+# asyncpg>=0.29.0
+
+# Caching & message queue
+redis>=5.0.0
+
+# Health checks
+httpx>=0.26.0
+
+# Structured logging
+structlog>=24.1.0
+
+# Performance profiling (optional)
+# py-spy>=0.3.14
