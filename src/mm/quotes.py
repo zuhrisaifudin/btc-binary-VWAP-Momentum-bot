@@ -8,9 +8,12 @@ Menghitung harga bid berdasarkan:
 4. Sizing dari saldo tersisa
 """
 
-from dataclasses import dataclass
-from typing import Optional, List, Tuple
+from dataclasses import dataclass, field
+from typing import Optional, List, Tuple, TYPE_CHECKING
 from enum import Enum
+
+if TYPE_CHECKING:
+    from src.mm.pnl_formula import InventoryState
 
 
 class ExecutionPhase(str, Enum):
@@ -84,6 +87,17 @@ class OrderBook:
         elif side == "DOWN" and self.asks_down:
             return self.asks_down[0].price
         return None
+
+
+@dataclass(frozen=True)
+class QuoteRequest:
+    """Request untuk generate quote."""
+    market: str
+    book: 'OrderBook'
+    inventory: 'InventoryState'
+    time_in_cycle: float
+    available_balance: float = 0.0
+    open_orders_notional: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -194,22 +208,28 @@ class QuoteEngine:
     
     def generate_quote(
         self,
-        book: OrderBook,
-        side: str,
-        secs_to_expiry: float,
-        inv_su: float,
-        inv_sd: float,
-        inv_pu: float,
-        inv_pd: float,
-        available_balance: float,
-        open_orders_notional: float = 0.0
+        request: QuoteRequest
     ) -> Optional[Quote]:
         """
         Generate quote untuk satu sisi.
         
+        Args:
+            request: QuoteRequest dengan book, inventory, waktu
+        
         Returns:
             Quote atau None jika tidak boleh order
         """
+        # Extract dari request
+        book = request.book
+        side = "UP"  # Default, bisa dikembangkan untuk multi-side
+        secs_to_expiry = request.time_in_cycle
+        inv_su = request.inventory.su
+        inv_sd = request.inventory.sd
+        inv_cost_u = request.inventory.cost_u
+        inv_cost_d = request.inventory.cost_d
+        available_balance = request.available_balance
+        open_orders_notional = request.open_orders_notional
+        
         # 1. Tentukan fase
         phase = self.get_phase(secs_to_expiry)
         
@@ -232,6 +252,125 @@ class QuoteEngine:
                     return None
                 # Maker: taruh sedikit di bawah mid
                 base_price = base_price * (1 - self.cfg.spread_bps / 2)
+        
+        # Hitung implied prices
+        inv_pu = inv_cost_u / inv_su if inv_su > 0 else 0.0
+        inv_pd = inv_cost_d / inv_sd if inv_sd > 0 else 0.0
+        
+        # 4. Apply cap rumus (Pu+Pd < 1)
+        price_cap = self.calculate_price_cap(side, inv_pu, inv_pd)
+        price = min(base_price, price_cap)
+        
+        # Jika price <= 0 setelah cap, skip
+        if price <= 0:
+            return None
+        
+        # 5. Hitung size dari saldo
+        size = self.calculate_size_from_balance(
+            price, available_balance, open_orders_notional
+        )
+        
+        # 6. Apply batas min/max
+        if size < self.cfg.min_shares:
+            return None
+        
+        # Taper: kecilkan size di detik akhir
+        if phase == ExecutionPhase.TAPER:
+            taper_factor = secs_to_expiry / self.cfg.taper_size_below_s
+            size = size * taper_factor
+        
+        # Batas max order USD
+        max_shares_by_usd = self.cfg.max_order_usd / price
+        size = min(size, max_shares_by_usd)
+        
+        if size < self.cfg.min_shares:
+            return None
+        
+        return Quote(
+            side=side,
+            price=round(price, 4),
+            size=round(size, 2),
+            is_taker=is_taker,
+            phase=phase,
+            reason=f"{phase.value}, {'taker' if is_taker else 'maker'}",
+        )
+    
+    def generate_quotes_two_sided_from_request(
+        self,
+        request: 'QuoteRequest'
+    ) -> Tuple[Optional['Quote'], Optional['Quote']]:
+        """
+        Generate quote untuk kedua sisi (UP dan DOWN) dari QuoteRequest.
+        
+        Returns:
+            (quote_up, quote_down)
+        """
+        # Generate quote UP
+        up_request = QuoteRequest(
+            market=request.market,
+            book=request.book,
+            inventory=request.inventory,
+            time_in_cycle=request.time_in_cycle,
+            available_balance=request.available_balance,
+            open_orders_notional=request.open_orders_notional
+        )
+        quote_up = self.generate_quote(up_request)
+        
+        # Generate quote DOWN (butuh side parameter, akan dihandle di generate_quote)
+        down_request = QuoteRequest(
+            market=request.market,
+            book=request.book,
+            inventory=request.inventory,
+            time_in_cycle=request.time_in_cycle,
+            available_balance=request.available_balance,
+            open_orders_notional=request.open_orders_notional
+        )
+        quote_down = self._generate_quote_for_side(down_request, "DOWN")
+        
+        return quote_up, quote_down
+    
+    def _generate_quote_for_side(
+        self,
+        request: 'QuoteRequest',
+        side: str
+    ) -> Optional['Quote']:
+        """Internal method untuk generate quote dengan side tertentu."""
+        # Extract dari request
+        book = request.book
+        secs_to_expiry = request.time_in_cycle
+        inv_su = request.inventory.su
+        inv_sd = request.inventory.sd
+        inv_cost_u = request.inventory.cost_u
+        inv_cost_d = request.inventory.cost_d
+        available_balance = request.available_balance
+        open_orders_notional = request.open_orders_notional
+        
+        # 1. Tentukan fase
+        phase = self.get_phase(secs_to_expiry)
+        
+        # 2. Cek apakah boleh taker
+        is_taker = self.should_be_taker(phase, secs_to_expiry)
+        
+        # 3. Dapatkan harga dari book
+        if is_taker:
+            # Taker: ambil ask (seberang spread)
+            base_price = book.best_ask(side)
+            if base_price is None:
+                return None
+        else:
+            # Maker: pasang di bid (atau sedikit di atas best bid)
+            base_price = book.best_bid(side)
+            if base_price is None:
+                # Book kosong, pakai mid
+                base_price = book.mid_price(side)
+                if base_price is None:
+                    return None
+                # Maker: taruh sedikit di bawah mid
+                base_price = base_price * (1 - self.cfg.spread_bps / 2)
+        
+        # Hitung implied prices
+        inv_pu = inv_cost_u / inv_su if inv_su > 0 else 0.0
+        inv_pd = inv_cost_d / inv_sd if inv_sd > 0 else 0.0
         
         # 4. Apply cap rumus (Pu+Pd < 1)
         price_cap = self.calculate_price_cap(side, inv_pu, inv_pd)
@@ -283,36 +422,28 @@ class QuoteEngine:
         open_orders_notional: float = 0.0
     ) -> Tuple[Optional[Quote], Optional[Quote]]:
         """
-        Generate quote untuk kedua sisi (UP dan DOWN).
+        Generate quote untuk kedua sisi (UP dan DOWN) - legacy interface.
         
         Returns:
             (quote_up, quote_down)
         """
-        inv_pu = inv_cost_u / inv_su if inv_su > 0 else 0.0
-        inv_pd = inv_cost_d / inv_sd if inv_sd > 0 else 0.0
+        # Buat QuoteRequest dari parameter
+        from src.mm.pnl_formula import InventoryState
         
-        quote_up = self.generate_quote(
-            book=book,
-            side="UP",
-            secs_to_expiry=secs_to_expiry,
-            inv_su=inv_su,
-            inv_sd=inv_sd,
-            inv_pu=inv_pu,
-            inv_pd=inv_pd,
-            available_balance=available_balance,
-            open_orders_notional=open_orders_notional,
+        inventory = InventoryState(
+            su=inv_su,
+            sd=inv_sd,
+            cost_u=inv_cost_u,
+            cost_d=inv_cost_d
         )
         
-        quote_down = self.generate_quote(
+        request = QuoteRequest(
+            market="unknown",
             book=book,
-            side="DOWN",
-            secs_to_expiry=secs_to_expiry,
-            inv_su=inv_su,
-            inv_sd=inv_sd,
-            inv_pu=inv_pu,
-            inv_pd=inv_pd,
+            inventory=inventory,
+            time_in_cycle=secs_to_expiry,
             available_balance=available_balance,
-            open_orders_notional=open_orders_notional,
+            open_orders_notional=open_orders_notional
         )
         
-        return quote_up, quote_down
+        return self.generate_quotes_two_sided_from_request(request)

@@ -9,41 +9,46 @@ env/
 venv/
 .venv/
 .ENV
-.ENV.local
 .env
-.env.local
 .env.*
+.venv.bak
+env.bak
+venv.bak
 
-# Logs
-*.log
-logs/
-
-# Dependencies
-node_modules/
-pip-wheel-metadata/
+# Build artifacts
+build/
+dist/
+*.egg
+*.egg-info/
+*.so
+*.dylib
+*.dll
+*.exe
 
 # Testing
 .coverage
+coverage/
 htmlcov/
-.nox/
-.tox/
+.nyc_output/
 .pytest_cache/
 .hypothesis/
 
-# IDE
+# Logs
+*.log
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor specific
 .vscode/
 .idea/
 *.swp
 *.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Build artifacts
-dist/
-build/
-*.egg-info/
-target/
-.gradle/
+*~
 ```
