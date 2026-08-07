@@ -1,271 +1,283 @@
-# BTC Binary — VWAP & Momentum Bot
+# Bot Polymarket BTC Binary — Arsitektur V3
 
-Automated trading bot for **Polymarket BTC Up/Down** binary markets (**5- or 15-minute** windows; set `market.interval_minutes` in `config.json`). It streams the CLOB via WebSocket, computes **VWAP**, **deviation**, **momentum**, and **z-score** on the **favorite** side, and fires **Fill-And-Kill (FAK)** entries when **all** conditions align. Optional **Good-Till-Date (GTD)** limits on the opposite token act as a **partial hedge** (advanced; off by default).
+## 📘 Dokumentasi Utama
 
-**Suite:** This bot is part of the [PolyBullLabs Polymarket suite](../README.md). **Repository:** [github.com/PolyBullLabs/polymakret-5min-15min-1hour-arbitrage-bot](https://github.com/PolyBullLabs/polymakret-5min-15min-1hour-arbitrage-bot.git) · **Telegram:** [@terauss](https://t.me/terauss)
+**Acuan tunggal arsitektur:** [Arsitektur Bot v3 — FastAPI Control Plane + Worker Event-Driven](Arsitektur%20Bot%20v3%20—%20FastAPI%20Control%20Plane%20+%20Worker%20Event-Driven)
 
----
-
-## Why this strategy can work (and what breaks it)
-
-**Idea:** Near the end of a short binary window, the market often **prices one side as favorite** (higher last price). The bot does **not** buy blindly: it waits for **(a)** favorite price in a **tunable band**, **(b)** a **late** entry slice, **(c)** price **stretched above short-horizon VWAP** (`min_deviation_pct`), and **(d)** **positive momentum**—roughly, **crowd consensus plus recent upward flow** on that token.
-
-**Profit source (when it exists):** If the **true** chance of the favorite winning **exceeds** the **entry price** (e.g. pay $0.80 when win probability is sustainably >80%), **expected value** can be positive. The indicators are a **filter** to reduce entries where the book is **choppy or mean-reverting** against the favorite.
-
-**Risk:** Binary markets can **gap** or **flip** into the close. **Break-even win rate ≈ entry price** before fees. **Slippage**, **partial fills**, and **oracle resolution** details can erode edge. **Start small**; use **`simulation`** in config when available.
-
-**Good fit:** You want **BTC only**, **transparent math** (see [PROJECT_LOGIC.md](PROJECT_LOGIC.md)), and a **Rich** terminal dashboard. **Poor fit:** You need multi-asset from one process—use **Meridian** (`up-down-spread-bot`) in the same suite.
+> ⚠️ **Dokumen ini adalah rancangan target V3**, bukan klaim bahwa semua file sudah ada. Fokus pada migrasi bertahap tanpa memutus bot V2 yang sedang berjalan.
 
 ---
 
-## What This Bot Does
+## 🚀 Ringkasan Migrasi V2 → V3
 
-On each interval (e.g. every 5 or 15 minutes, depending on config), Polymarket opens a market asking whether BTC will finish up or down for that window. Two tokens are available:
+### Perbedaan Utama
 
-- **UP token** pays $1.00 if BTC rises, $0.00 if it falls
-- **DOWN token** pays $1.00 if BTC falls, $0.00 if it rises
-
-The bot identifies the "favorite" (the token with higher probability), waits for specific technical conditions to align, then buys it. If the prediction is correct, the token resolves to $1.00 for a profit. If wrong, it resolves to $0.00 for a loss.
-
-### Key Features
-
-- Real-time terminal dashboard with Rich library (order book, indicators, signals, position, P&L)
-- VWAP-based signal generation with deviation and momentum filters
-- Historical win rate filtering by price range and time bin
-- FAK order execution with retry logic and WebSocket fill confirmation
-- Optional hedging via GTD orders on the opposite token at $0.02
-- Timeout recovery: detects fills via User WebSocket even after network timeouts
-- Chainlink BTC/USD oracle tracking: real-time BTC price and deviation from market start
-- Auto-redemption of winning positions on-chain
-- Telegram notifications with trade alerts and equity charts
-- Per-trade drawdown tracking with logging
-- Persistent trade history in JSON format (survives restarts)
-
-## Project Structure
-
-```
-btc-binary-VWAP-Momentum-bot/
-|-- main.py                 # Main bot: dashboard, signals, execution, all core logic
-|-- config.json             # Trading parameters (strategy, entry, hedge, etc.)
-|-- .env.example            # Environment variables template (copy to .env)
-|-- requirements.txt        # Python dependencies
-|-- chart_pnl.py            # P&L chart generator (run separately)
-|-- CONFIG.md               # Full config.json reference
-|-- PROJECT_LOGIC.md        # Detailed technical documentation with formulas
-|-- docs/
-|   +-- README.md           # Step-by-step beginner guide (Windows + Linux)
-|-- data/
-|   +-- win_rate.csv        # Historical win rate matrix (price ranges x per-minute bins; 5m uses first 5 bins)
-+-- src/
-    |-- __init__.py
-    |-- config_loader.py    # Loads config.json + .env, validates settings
-    |-- order_executor.py   # FAK order placement with retry logic
-    |-- hedge_manager.py    # GTD hedge order management
-    |-- market_finder.py    # Discovers active markets via Gamma API
-    |-- position_tracker.py # Position and P&L tracking
-    |-- auto_redeemer.py    # On-chain redemption of resolved positions
-    |-- telegram_notifier.py# Telegram alerts and chart sending
-    |-- user_websocket.py   # User channel WebSocket (order/fill tracking)
-    +-- websocket_client.py # Market data WebSocket (prices, trades, book)
-```
-
-## Installation (From Scratch on a Clean Machine)
-
-### Prerequisites
-
-- Linux server (Ubuntu 22.04+ recommended) or macOS
-- Python 3.11+
-- Polymarket account with funded USDC balance (on Polygon), POL for gas fees, and API credentials
-- Private key of your trading wallet
-
-### Step 1: System Setup
-
-```bash
-sudo apt update && sudo apt upgrade -y
-sudo apt install -y python3 python3-pip python3-venv git
-python3 --version
-```
-
-### Step 2: Clone the Repository
-
-```bash
-cd ~
-git clone https://github.com/PolyBullLabs/polymakret-5min-15min-1hour-arbitrage-bot.git
-cd polymakret-5min-15min-1hour-arbitrage-bot/btc-binary-VWAP-Momentum-bot
-```
-
-### Step 3: Create Virtual Environment
-
-```bash
-python3 -m venv venv
-source venv/bin/activate
-```
-
-### Step 4: Install Dependencies
-
-```bash
-pip install --upgrade pip
-pip install -r requirements.txt
-```
-
-### Step 5: Configure Environment Variables
-
-```bash
-cp .env.example .env
-nano .env
-```
-
-Fill in your credentials:
-
-| Variable | Required | Description |
+| Aspek | V2 (Sekarang) | **V3 (Target)** |
 |---|---|---|
-| PRIVATE_KEY | Yes | Polygon wallet private key (0x...) |
-| FUNDER_ADDRESS | If proxy | Gnosis Safe address (if using proxy wallet) |
-| SIGNATURE_TYPE | If proxy | 0=EOA, 1=Poly Proxy, 2=Gnosis Safe |
-| POLY_API_KEY | Yes | Polymarket CLOB API key |
-| POLY_API_SECRET | Yes | Polymarket CLOB API secret |
-| POLY_API_PASSPHRASE | Yes | Polymarket CLOB API passphrase |
-| RPC_URL | Recommended | Alchemy/Infura Polygon RPC (default: public RPC) |
-| TELEGRAM_BOT_TOKEN | Optional | Telegram bot token from @BotFather |
-| TELEGRAM_CHAT_ID | Optional | Your Telegram user/chat ID |
+| Data Fill | REST-poll (lag 100ms–1s) | **WebSocket** (~50–150ms) |
+| Order Book | REST read | **WS book in-memory** |
+| Cek Pra-Order | Risk/inventory | **+ Guardrail rumus** `worst_case`/`Pu+Pd<1` |
+| Arsitektur | Monolitik | **FastAPI Control Plane + Worker Event-Driven** |
+| Status | Live-ready | Rancangan (migrasi bertahap) |
 
-**How to get Polymarket API credentials:**
-1. Go to https://polymarket.com and connect your wallet
-2. Navigate to your account settings
-3. Generate API credentials (key, secret, passphrase)
-4. These are used for L2 authentication on the CLOB
+### Komponen Baru V3
 
-### Step 6: Configure Trading Parameters
-
-```bash
-nano config.json
+```
+infra/polymarket/market_stream.py  [BARU]  WS book → book in-memory
+infra/polymarket/user_stream.py    [PINDAH/UBAH] WS fill + fallback REST
+runtime/market_worker.py           [BARU]  Event loop per market + single writer
+mm/guardrail.py                    [BARU]  Keputusan order dari rumus PnL
+mm/pnl_formula.py                  [PINDAH] Matematika murni yang dapat diimpor
+api/                               [BARU]  FastAPI control plane + WebSocket UI
 ```
 
-See the Configuration section below for parameter descriptions.
+---
 
-### Step 7: Create Logs Directory
+## 📐 Arsitektur V3
 
-```bash
-mkdir -p logs
+### Filosofi Desain
+
+1. **Jalur eksekusi WebSocket yang cepat dan fail-closed**
+2. **Guardrail `pnl_formula` sebelum order menambah posisi**
+3. **FastAPI sebagai control plane produksi tanpa menjadikan HTTP sebagai jalur trading**
+
+### Flow Utama (Event Loop)
+
+```
+        ┌─────────────────────── Polymarket CLOB ───────────────────────┐
+        │  WS market channel          WS user channel        REST order  │
+        └────────┬────────────────────────┬──────────────────────┬──────┘
+                 │ book delta              │ fill                 ▲ place/cancel
+                 ▼                         ▼                      │
+        ┌─────────────────┐      ┌──────────────────┐            │
+        │ market_stream   │      │ user_stream (WS) │            │
+        │ book in-memory  │      │ update inventori │            │
+        └────────┬────────┘      └────────┬─────────┘            │
+                 │ event "book berubah"    │ event "fill"        │
+                 └───────────┬─────────────┘                     │
+                             ▼                                   │
+                  ┌─────────────────────┐                        │
+                  │   QUOTE ENGINE      │                        │
+                  │ 1. baca inventori   │                        │
+                  │ 2. hitung quote     │                        │
+                  │ 3. GUARDRAIL RUMUS  │────── lolos ──────────►│ executor
+                  │ 4. place / skip     │────── ditolak ─► buang │
+                  └─────────────────────┘                        │
+                             ▲                                   │
+                             └───────── fill balik ──────────────┘
 ```
 
-### Step 8: Run the Bot
+**Langkah per event:**
+1. Baca inventori: `Su, Sd, Pu, Pd`
+2. Hitung quote target dari `quotes.py`
+3. **GUARDRAIL RUMUS** (inti keamanan)
+4. Eksekusi yang lolos → `maker_executor`
+5. Fill masuk → update inventori → ulang langkah 1
 
-```bash
-source venv/bin/activate
-python3 main.py
+---
+
+## 🔒 Guardrail Rumus: Inti Keamanan
+
+Sebelum tiap bid dipasang, proyeksikan posisi seandainya bid itu keisi, lalu uji dengan `pnl_formula`.
+
+### Pseudocode Keputusan
+
+```python
+def izinkan_bid(sisi, p, q, inv, cfg):
+    Su, Sd = inv.su, inv.sd
+    Pu, Pd = inv.pu, inv.pd
+    
+    if sisi == "UP":
+        Su = inv.su + q; Pu = (inv.cost_u + q*p) / Su
+    else:
+        Sd = inv.sd + q; Pd = (inv.cost_d + q*p) / Sd
+
+    wc, risk_free = worst_case(Su, Pu, Sd, Pd)
+    sum_price = Pu + Pd
+    imbalance = abs(Su - Sd)
+
+    if imbalance > cfg.max_imbalance:
+        return False, "imbalance terlalu besar"
+    if cfg.mode == "risk_free_only" and not risk_free:
+        return False, "bukan risk-free"
+    if cfg.mode == "spread_positive" and sum_price >= 1:
+        return False, "Pu+Pd >= 1 (pasangan rugi)"
+    return True, "ok"
 ```
 
-### Step 9: Run in Background (Production)
+### Mode Guardrail
 
-```bash
-sudo apt install -y tmux
-tmux new -s bot
-
-# Inside tmux:
-source venv/bin/activate
-python3 main.py
-
-# Detach: Ctrl+B then D
-# Reattach: tmux attach -t bot
-```
-
-## Configuration
-
-The bot is **highly configurable** -- every aspect of the strategy, risk management, execution, hedging, and notifications can be fine-tuned through `config.json` without touching any code. You can adjust the entry window, price filters, indicator sensitivity, bet sizing, and more to match your risk tolerance and trading style.
-
-**For a complete parameter-by-parameter guide with explanations, examples, and ready-made presets (Conservative / Moderate / Aggressive), see [CONFIG.md](CONFIG.md).**
-
-Quick overview of the most important settings:
-
-| Parameter | Default | What it controls |
+| Mode | Kondisi PLACE | Keterangan |
 |---|---|---|
-| `strategy.min_price` | 0.75 | Minimum token price to enter (lower = riskier, more profit) |
-| `strategy.max_price` | 0.88 | Maximum token price to enter (higher = safer, less profit) |
-| `strategy.min_elapsed_sec` | 530 | Wait this many seconds before entering |
-| `strategy.min_deviation_pct` | 3 | Minimum VWAP deviation to trigger signal |
-| `strategy.no_entry_before_end_sec` | 335 | Stop entering with this many seconds left |
-| `entry.bet_amount_usd` | 5 | USD per trade (start small!) |
-| `entry.max_entry_price` | 0.88 | Hard price ceiling for safety |
-| `hedge.enabled` | false | Automatic hedging on opposite token |
-| `telegram.enabled` | false | Trade notifications via Telegram |
-| `web_dashboard.enabled` | false | Local web UI (same live data as the terminal; JSON at `/api/state`) |
+| `risk_free_only` | `worst' ≥ 0` | Paling ketat, tolak order yang bisa rugi apa pun hasilnya |
+| `spread_positive` | `sum_price' < 1` | Pasangan untung, tapi masih bisa rugi jika imbalance besar |
+| `off` | Selalu | **HANYA untuk replay/analisis**, tidak boleh live |
 
-When `web_dashboard.enabled` is true, open **http://127.0.0.1:8765/** (or your `host`/`port`) in a browser on the same machine. Defaults bind to localhost only; do not expose the port publicly without authentication.
+---
 
-## How the Strategy Works
+## 💰 Bagaimana Bot V3 Menghasilkan Uang
 
-### Signal Generation
+Sumber laba utama adalah membeli **dua sisi pasangan** dengan biaya gabungan di bawah $1:
 
-The bot evaluates 5 conditions every 250ms. ALL must be true to trigger a BUY:
-
-1. **Price in range**: min_price <= favorite_price <= max_price
-2. **Time elapsed**: elapsed_seconds >= min_elapsed_sec
-3. **VWAP deviation**: min_deviation_pct < deviation < max_deviation_pct
-4. **Positive momentum**: momentum > 0%
-5. **Time remaining**: seconds_left > no_entry_before_end_sec
-
-### Indicators
-
-- **VWAP** (Volume-Weighted Average Price): SUM(price * volume) / SUM(volume) over the last N seconds
-- **Deviation**: (last_price - VWAP) / VWAP * 100% -- how far price moved from its average
-- **Momentum**: (price_now - price_Ns_ago) / price_Ns_ago * 100% -- direction of price movement
-- **Z-Score**: (price - mean) / stdev over the last 5 seconds -- statistical outlier detection
-
-### Execution Flow
-
-```
-Signal detected
-  -> FAK order placed
-  -> Fill confirmed via WebSocket
-  -> Position recorded
-  -> Hedge placed (if enabled)
-  -> Drawdown tracked every 250ms
-  -> Market ends (10s before expiry)
-  -> Position resolved, P&L recorded
-  -> Winning positions auto-redeemed on-chain
+```text
+Su, Sd     = share Up dan Down terisi
+Pu, Pd     = rata-rata harga beli
+C          = modal = Su × Pu + Sd × Pd
+M          = min(Su, Sd)         # share berpasangan
+D          = |Su - Sd|           # share satu sisi tersisa
+laba_pasangan = M × (1 - Pu - Pd)  # spread pair
+worst_case    = M - C              # risiko minimum
 ```
 
-### Risk
+Jika `Pu + Pd < 1` dan `M > 0`, setiap share pasangan dibeli kurang dari $1 menghasilkan $1 saat di-merge/settle.
 
-Higher entry prices mean higher risk. The break-even win rate equals the entry price:
+---
 
-- Entry at $0.75 needs 75% win rate to break even
-- Entry at $0.85 needs 85% win rate to break even
-- Entry at $0.88 needs 88% win rate to break even
+## ⏱ Profil Waktu: Kapan TAKER, Kapan MAKER
 
-Start with small bet_amount_usd ($1-5) until you understand the behavior.
+Data dari 80.188 fill nyata:
 
-## Logs
+| Detik ke Expiry | Maker% | Taker% | Fase |
+|---|---|---|---|
+| **295–300 (buka)** | 18% | **82%** | **TAKER agresif** — seed posisi cepat |
+| 240–295 | 54% | 46% | Campur, mulai maker |
+| 180–240 | 61% | 39% | Maker-dominan |
+| 120–180 | 61% | 39% | Maker-dominan |
+| 60–120 | 66% | 34% | Maker naik |
+| 30–60 | 77% | 23% | Maker |
+| 15–30 | 80% | 20% | Maker |
+| **0–15 (akhir)** | **97%** | 3% | **MAKER murni** — likuiditas keluar |
 
-The bot creates a logs/ directory with:
-
-| File | Description |
-|---|---|
-| bot.log | Main application log (connections, errors, BTC price ticks) |
-| signals.log | Full indicator snapshot at each trade entry and market end |
-| orders.log | Detailed order execution log (prices, retries, fills) |
-| hedges.log | Hedge order placement and fill tracking |
-| trading_log.json | Persistent trade history (survives restarts) |
-
-## Generating Charts
-
-After accumulating trades, generate a P&L chart:
-
-```bash
-source venv/bin/activate
-python3 chart_pnl.py
-# Output: logs/pnl_chart.png
+**Implikasi V3:**
+```
+t > 295s          → Izinkan TAKER (seed)
+60s < t ≤ 295s    → MAKER-dominan
+t ≤ 60s           → MAKER-only (haram menyeberang spread)
+t ≤ 15s           → MAKER-only, size mengecil
 ```
 
-## Documentation
+---
 
-For a deep technical dive including all formulas, architecture diagrams, and the complete signal generation logic, see [PROJECT_LOGIC.md](PROJECT_LOGIC.md).
+## 🌐 FastAPI Control Plane
 
-## Disclaimer
+### API Endpoints V3
 
-This software is provided **for educational and research purposes only**. Trading on prediction markets involves **substantial risk**; you may **lose your entire stake**. **No performance is guaranteed.** The authors and contributors are **not** responsible for financial losses, bugs, or exchange rule changes. Use **simulation** where offered, keep **API keys and private keys** secret, and **never** trade with capital you cannot afford to lose. For **extended quant strategies** (Kelly, Monte Carlo, advanced TA, sizing systems), see the [repository README](../README.md) and contact [@terauss](https://t.me/terauss).
+| Method | Path | Tanggung Jawab |
+|---|---|---|
+| GET | /health/live | Process hidup |
+| GET | /health/ready | Preflight, worker, feed siap |
+| GET | /v1/markets | Ringkasan semua worker |
+| GET | /v1/markets/{slug} | Book, quote, status |
+| GET | /v1/positions | Su/Sd/Pu/Pd, PnL, worst_case, matched, imbalance |
+| GET | /v1/config | Konfigurasi tanpa secret |
+| POST | /v1/config/reload | Reload parameter aman |
+| POST | /v1/markets/{slug}/pause | Pause + cancel all |
+| POST | /v1/markets/{slug}/resume | Resume setelah preflight |
+| WS | /v1/ws/dashboard | Push snapshot terbaru |
+| GET | /metrics | Prometheus metrics |
 
-## License
+**Tidak ada endpoint** place-order, flatten, transfer dana, atau switch paper→live.
 
-MIT
+---
+
+## 📁 Struktur Folder Target
+
+```
+src/
+├── api/                                            [BARU]
+│   ├── app.py, lifespan.py, dependencies.py
+│   ├── schemas/ (market, position, control)
+│   └── routers/ (health, markets, positions, control, config, metrics, dashboard_ws)
+├── runtime/                                        [BARU]
+│   ├── events.py, snapshots.py, registry.py
+│   ├── supervisor.py, market_worker.py
+│   ├── commands.py, preflight_service.py
+├── mm/                                             inti strategi
+│   ├── pnl_formula.py [PINDAH], paired_inventory.py [BARU]
+│   ├── guardrail.py [BARU], runner.py [UBAH]
+│   ├── quotes.py, risk.py, maker_executor.py [TETAP]
+│   └── ... modul lainnya
+├── infra/                                          [BARU] adapter I/O
+│   └── polymarket/
+│       ├── book.py, market_stream.py, user_stream.py
+│       ├── market_catalog.py, clob_gateway.py
+│   └── storage/
+│       ├── event_journal.py, config_store.py
+├── observability/                                   [BARU]
+│   ├── logging.py, metrics.py
+└── tui/
+    └── dashboard.py [PINDAH bertahap]
+
+scripts/
+├── run_market_maker.py [UBAH jadi CLI tipis]
+├── simulate_paired_orders.py [SUDAH ADA]
+└── test_*.py [test suite baru]
+```
+
+---
+
+## 🔄 Rencana Migrasi Bertahap
+
+| Tahap | Fokus | Kriteria Selesai |
+|---|---|---|
+| 0 | Fondasi murni (pnl_formula, paired_inventory, guardrail) | Unit test lulus |
+| 1 | Pisahkan adapter ke infra/polymarket | Scripts lama stabil |
+| 2 | WebSocket & recovery (market_stream, user_stream) | Mock reconnect/desync lulus |
+| 3 | Worker (market_worker, supervisor) | Paper mode pakai worker baru |
+| 4 | FastAPI (api/*, observability/*) | TestClient lifecycle/control/WS lulus |
+| 5 | Canary (paper → live minimal) | Dashboard, journal, reconciliation konsisten |
+
+**Selama tahap 1–4**, `scripts/run_market_maker.py` tetap entry point kompatibel.
+
+---
+
+## ⚙️ Konfigurasi V3
+
+```yaml
+market_maker:
+  guardrail:
+    mode: risk_free_only       # risk_free_only | spread_positive | off (paper)
+    max_imbalance_shares: 14
+    pair_margin: 0.02
+  capital:
+    session_capital_usd: 20
+    reserve_usd: 4
+    max_order_usd: 2.50
+    min_shares: 5
+  runtime:
+    book_debounce_ms: 25
+    fill_queue_max: 1_000
+    reconnect_max_delay_s: 10
+    shutdown_timeout_s: 15
+  api:
+    enabled: true
+    host: 127.0.0.1
+    port: 8000
+
+# Environment (TIDAK BOLEH di config.json):
+BOT_API_TOKEN=...
+```
+
+---
+
+## ⚠️ Peringatan Penting
+
+1. **Mode `off`** hanya untuk replay/analisis, tidak boleh live
+2. **Fill tidak boleh hilang** — fail-closed jika queue penuh
+3. **API tidak boleh mengeksekusi CLOB** langsung
+4. **Satu Uvicorn worker per akun** — jangan --workers > 1
+5. **Credential tidak boleh masuk log** atau config.json
+6. **Post-only wajib** untuk jamin maker fee 0 + rebate
+7. **Taker delay 250 ms** di btc-5m — pakai seminimal mungkin
+
+---
+
+## 📞 Referensi
+
+- **Dokumen Lengkap:** [Arsitektur Bot v3](Arsitektur%20Bot%20v3%20—%20FastAPI%20Control%20Plane%20+%20Worker%20Event-Driven)
+- **Polymarket Docs:** https://docs.polymarket.com/
+- **Telegram:** [@terauss](https://t.me/terauss)
+
+---
+
+**Status:** Rancangan target V3. Migrasi dilakukan bertahap tanpa memutus bot V2.
