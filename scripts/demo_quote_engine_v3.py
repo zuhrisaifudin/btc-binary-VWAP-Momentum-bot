@@ -128,16 +128,27 @@ def demo_quote_generation():
     for secs_to_expiry, label in test_scenarios:
         print(f"\n⏱️  Waktu: {secs_to_expiry}s ({label})")
         
-        quotes = engine.generate_quotes_two_sided(
-            book=book,
-            secs_to_expiry=secs_to_expiry,
-            inv_su=inv_su,
-            inv_sd=inv_sd,
-            inv_cost_u=inv_cost_u,
-            inv_cost_d=inv_cost_d,
-            available_balance=balance,
-            open_orders_notional=0.0,
+        # Buat QuoteRequest
+        from src.mm.quotes import QuoteRequest
+        from src.mm.pnl_formula import InventoryState
+        
+        inventory = InventoryState(
+            su=inv_su,
+            sd=inv_sd,
+            cost_u=inv_cost_u,
+            cost_d=inv_cost_d
         )
+        
+        request = QuoteRequest(
+            market="BTC-2024Q4-100K",
+            book=book,
+            inventory=inventory,
+            time_in_cycle=secs_to_expiry,
+            available_balance=balance,
+            open_orders_notional=0.0
+        )
+        
+        quotes = engine.generate_quotes_two_sided_from_request(request)
         
         quote_up, quote_down = quotes
         

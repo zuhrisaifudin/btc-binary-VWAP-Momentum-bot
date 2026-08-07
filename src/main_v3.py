@@ -20,7 +20,6 @@ from fastapi.middleware.cors import CORSMiddleware
 # Import components
 from src.api import router as api_router
 from src.api import set_global_state, on_fill_event, on_book_snapshot
-from src.config_loader import load_config
 from src.infra.websocket_streams import (
     ConnectionPool,
     create_connection_pool,
@@ -28,6 +27,8 @@ from src.infra.websocket_streams import (
     FillEvent,
 )
 from src.workers.market_worker import WorkerManager, create_worker_manager
+
+import yaml
 
 # Setup logging
 logging.basicConfig(
@@ -93,8 +94,9 @@ async def startup_event():
     
     # Load konfigurasi
     try:
-        _config = load_config("config.json")
-        logger.info("Configuration loaded successfully")
+        with open("config/config.yaml", "r") as f:
+            _config = yaml.safe_load(f)
+        logger.info("Configuration loaded successfully from config/config.yaml")
         
         # Validasi guardrail mode
         guardrail_mode = _config.get("guardrail", {}).get("mode", "risk_free_only")
