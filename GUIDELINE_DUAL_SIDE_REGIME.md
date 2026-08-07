@@ -1,177 +1,469 @@
-# Panduan Strategi Dual-Side Scaling & Regime Adaptation
-## Polymarket BTC Binary Options (5-Minute Cycles)
+# Guardrail Rumus — Bot V3 (FastAPI Control Plane + Worker Event-Driven)
 
-Panduan ini menjelaskan arsitektur, parameter, alur kerja, dan konfigurasi dari bot trading otomatis untuk opsi biner Polymarket BTC (5-menit) yang menggunakan strategi **Dual-Side Scaling & Regime Adaptation**.
+**Dokumen ini menggantikan GUIDELINE_DUAL_SIDE_REGIME.md V2.** 
+Jika Anda masih menggunakan strategi dual-side scaling dengan Hurst Exponent dan OFI, 
+dokumen itu **SUDAH USANG** dan tidak lagi relevan untuk Arsitektur V3.
 
----
-
-## 1. Konsep Utama & Mekanisme Kerja
-
-Strategi ini dirancang untuk memaksimalkan *expected value* (EV) sambil menekan risiko kebangkrutan (*drawdown*) pada pasar biner Polymarket dengan mengandalkan empat pilar utama:
-
-### 1.1 Deteksi Rezim Pasar (Regime Detection)
-Bot mendeteksi perilaku tren harga Bitcoin secara real-time menggunakan dua indikator kuantitatif:
-1. **Hurst Exponent ($H$)**: Mengukur memori jangka panjang dari pergerakan harga BTC (menggunakan $ddof=1$ untuk sample standard deviation agar tidak bias).
-   - $H > 0.55$: **TRENDING** (harga cenderung searah).
-   - $H < 0.45$: **MEAN_REVERTING** (harga cenderung berbalik arah).
-   - $0.45 \le H \le 0.55$: **NEUTRAL** (acak/random walk, bot tidak agresif).
-2. **Order Flow Imbalance (OFI)**: Mengukur tekanan beli/jual dari order book tingkat 3 (top 3 levels). OFI positif menunjukkan akumulasi beli, sedangkan OFI negatif menunjukkan tekanan jual.
-
-### 1.2 Penentuan Sizing (Modified Kelly Criterion)
-Untuk menentukan porsi saldo yang dimasukkan ke pasar, bot menggunakan rumus Kelly Criterion yang dimodifikasi (*Half-Kelly* untuk mengurangi volatilitas saldo):
-- **Standard Kelly**: Menghitung alokasi fraksional murni berdasarkan estimasi *win rate* dan harga token saat ini.
-- **Conservative Kelly**: Membatasi risiko lebih ketat dengan mensyaratkan minimal estimasi *win rate* 55%, minimal edge keuntungan 2%, harga token berada di rentang wajar (0.30 - 0.70), dan batas maksimal fraksi saldo adalah 15%.
-- Bot akan memilih nilai fraksi terkecil dari kedua kalkulasi ini untuk proteksi maksimal.
-
-### 1.3 Alokasi Dua Sisi (Dual-Side Split 75/25)
-Ketika arah dominan terkonfirmasi oleh rezim pasar, bot tidak menaruh seluruh budget pada satu sisi saja, melainkan membaginya:
-- **75% untuk Dominant Token** (misalnya UP jika tren naik).
-- **25% untuk Insurance/Trap Token** (misalnya DOWN untuk mengunci sebagian keuntungan atau meminimalkan kerugian jika terjadi pembalikan harga mendadak).
-*Catatan: Jumlah alokasi dominant + insurance wajib bernilai 1.0 (100%).*
-
-### 1.4 Smart Scaling-In Engine
-Eksekusi order biner Polymarket dilakukan secara bertahap menggunakan **Smart Scaling-In Engine**:
-- Budget dibagi rata menjadi **N slices** (misal 10 slices) dan dieksekusi secara periodik (misal setiap 12 detik dalam durasi 120 detik).
-- **Maker-First Pricing**: Bot menempatkan order limit beli (`best_bid + offset`) secara dinamis di setiap slice, meningkat perlahan tanpa mengejar harga ask secara agresif untuk menghemat biaya transaksi (mengincar rebate/maker fee).
-- **Taker Fallback (Slice 8+)**: Jika hingga slice ke-8 target kontrak belum terpenuhi karena harga menjauh, bot secara otomatis beralih menggunakan order pasar (*market/taker order*) untuk sisa kontrak agar posisi tetap terisi sebelum siklus pasar 5-menit berakhir.
+V3 tidak menggunakan deteksi rezim, Kelly Criterion, atau scaling-in engine. 
+Sebagai gantinya, V3 memakai **guardrail rumus PnL murni** yang deterministik dan fail-closed.
 
 ---
 
-## 2. Parameter Ideal dalam `config.json`
+## Ringkasan: V2 vs V3
 
-Berikut adalah contoh konfigurasi optimal yang dirancang untuk menjaga konsistensi profitabilitas dan meminimalisir risiko drawdown:
+| Komponen | V2 (Legacy — HAPUS) | V3 (Target — PAKAI) |
+|----------|---------------------|---------------------|
+| **Deteksi arah** | Hurst Exponent + OFI | **Tidak ada** — bot netral dua sisi |
+| **Sizing** | Modified Kelly Criterion | **Batas saldo + rumus `Pu+Pd<1`** |
+| **Alokasi** | 75/25 split (dominant/insurance) | **Simetris dua sisi** — bid UP & DOWN bersamaan |
+| **Eksekusi** | Scaling-in 10 slices (120s) | **Event-driven** — requote tiap book berubah |
+| **Pengaman** | Circuit breaker (3 loss) | **Guardrail rumus** (`worst_case`, `imbalance`) |
+| **Entry timing** | Cutoff 60s sebelum expiry | **Profil waktu** — taker 5s pertama, maker-only <60s |
+| **Data source** | REST polling | **WebSocket** (book + fill real-time) |
+| **Kontrol** | Web dashboard Rich | **FastAPI API** + WebSocket UI |
 
+**Kesimpulan:** V2 adalah strategi **directional** (menebak arah BTC). 
+V3 adalah strategi **market-making non-directional** (mengumpulkan spread dari kedua sisi).
+
+---
+
+## 1. Filosofi Guardrail V3
+
+V3 tidak mencoba memprediksi apakah BTC akan naik atau turun. 
+Sebaliknya, V3 mencari **pasangan token UP+DOWN yang dibeli di bawah $1**, 
+lalu mengunci profit dari selisih tersebut melalui mekanisme **merge/redeem**.
+
+### Sumber Profit V3
+
+```
+Laba bruto = M × (1 - Pu - Pd)
+
+di mana:
+  M  = min(Su, Sd)          # share berpasangan
+  Pu = harga rata-rata UP   # cost_u / Su
+  Pd = harga rata-rata DOWN # cost_d / Sd
+```
+
+**Syarat profit:**
+- `Pu + Pd < 1` → pasangan untung (spread positif)
+- `M > 0` → sudah ada pasangan yang terbentuk
+
+**Contoh:**
+```
+BUY UP   5 share @ $0.40  → biaya $2.00
+BUY DOWN 5 share @ $0.50  → biaya $2.50
+
+Su=5, Sd=5, Pu=0.40, Pd=0.50
+modal = $4.50
+laba_pasangan = 5 × (1 - 0.40 - 0.50) = +$0.50
+```
+
+Ini adalah **arbitrase harga**, bukan prediksi arah.
+
+---
+
+## 2. Guardrail Rumus — Tiga Lapis Pengaman
+
+Setiap kandidat order **WAJIB** lulus tiga tes ini sebelum dieksekusi:
+
+### Lapis 1: `worst_case >= 0` (Risk-Free Only)
+
+```python
+worst_case = min(Su, Sd) - modal
+modal = Su×Pu + Sd×Pd
+```
+
+**Arti:** Posisi harus bebas rugi apa pun hasil market (UP menang atau DOWN menang).
+
+**Mode guardrail:**
+- `"risk_free_only"` → WAJIB `worst_case >= 0` (live trading)
+- `"spread_positive"` → Cukup `Pu+Pd < 1` (paper testing, masih bisa rugi jika imbalance)
+- `"off"` → Tidak ada guardrail (**JANGAN LIVE** — hanya analisis Bonereaper)
+
+**Statistik Bonereaper (analisis empiris):**
+- Hanya **14.6%** market yang risk-free (`worst_case >= 0`)
+- **46.9%** market punya `Pu+Pd >= 1` (pasangan rugi)
+- **85.4%** market BUKAN risk-free
+
+→ Ini mengapa V3 wajib pakai mode `risk_free_only` untuk live.
+
+### Lapis 2: `Pu + Pd < 1 - pair_margin` (Spread Positif)
+
+Order ditolak jika harga rata-rata pasangan terlalu dekat dengan $1.
+
+**Default margin:** `0.02` (2¢)
+- Contoh: `Pu = 0.40` → `Pd` harus ≤ `0.58` (bukan 0.60)
+- Tujuannya:留出 buffer untuk fee, slippage, dan pembulatan venue
+
+**Bahaya jika dilanggar:**
+```
+Pegang Up avg 0.05, beli Down @ 0.98
+→ Pu+Pd = 1.03 > 1
+→ Pasangan rugi $0.03 per share
+```
+
+### Lapis 3: `imbalance <= max_imbalance_shares` (Batasi Exposure Arah)
+
+```python
+imbalance = |Su - Sd|
+```
+
+Membatasi share yang tidak berpasangan (net exposure).
+
+**Default:** `14` shares (berdasarkan analisis bucket 5-menit BTC)
+
+**Contoh:**
+```
+Su = 100, Sd = 86  → imbalance = 14  ✓ OK
+Su = 100, Sd = 80  → imbalance = 20  ✗ DITOLAK
+```
+
+**Kenapa penting?**
+Dari contoh akumulasi Bonereaper (BTC 11:10–11:15):
+```
+Su = 262 @ 0.139, Sd = 44 @ 0.725
+Pu+Pd = 0.864 < 1  ✓ pasangan untung
+matched = 44, imbalance = 218  ✗ exposure besar
+
+Down menang → PnL = -$24.33 (rugi meski Pu+Pd < 1)
+```
+
+→ Spread pasangan (+$5.98) kalah oleh kerugian exposure Up (+$218 @ 0.139).
+
+---
+
+## 3. Alur Keputusan Order (Pseudocode)
+
+```python
+def izinkan_bid(sisi, p, q, inv, cfg):
+    """
+    Guardrail check sebelum place order.
+    
+    Args:
+        sisi: "UP" atau "DOWN"
+        p: harga bid kandidat
+        q: size (share)
+        inv: inventori sekarang (Su, Sd, Pu, Pd, cost_u, cost_d)
+        cfg: config guardrail (mode, max_imbalance, pair_margin)
+    
+    Returns:
+        (bool, str): (allowed, reason)
+    """
+    # 1. Proyeksi posisi PASCA-fill
+    Su, Sd = inv.su, inv.sd
+    Pu, Pd = inv.pu, inv.pd
+    cost_u, cost_d = inv.cost_u, inv.cost_d
+    
+    if sisi == "UP":
+        Su = inv.su + q
+        Pu = (cost_u + q * p) / Su
+    else:
+        Sd = inv.sd + q
+        Pd = (cost_d + q * p) / Sd
+    
+    # 2. Hitung metrik kunci
+    wc, risk_free = worst_case(Su, Pu, Sd, Pd)
+    sum_price = Pu + Pd
+    imbalance = abs(Su - Sd)
+    
+    # 3. Tes Lapis 3: Imbalance cap
+    if imbalance > cfg.max_imbalance_shares:
+        return False, f"imbalance {imbalance} > max {cfg.max_imbalance_shares}"
+    
+    # 4. Tes Lapis 1: Risk-free (jika mode aktif)
+    if cfg.mode == "risk_free_only" and not risk_free:
+        return False, f"worst_case {wc:.2f} < 0 (bukan risk-free)"
+    
+    # 5. Tes Lapis 2: Spread positif
+    if cfg.mode == "spread_positive" and sum_price >= 1 - cfg.pair_margin:
+        return False, f"Pu+Pd {sum_price:.3f} >= {1 - cfg.pair_margin:.2f} (pasangan rugi)"
+    
+    # 6. Lolos semua tes
+    return True, "ok"
+```
+
+**Catatan:** Fungsi `worst_case()` ada di `src/mm/pnl_formula.py`:
+```python
+def worst_case(su, pu, sd, pd):
+    modal = su * pu + sd * pd
+    wc = min(su, sd) - modal
+    risk_free = wc >= 0
+    return wc, risk_free
+```
+
+---
+
+## 4. Harga Masuk Dinamis
+
+Harga bid **tidak statis** — dihitung ulang setiap event berdasarkan 3 batas:
+
+### Batas 1: Rumus (Cap dari sisi lawan)
+
+```python
+p_bid_UP_max   = 1 - Pd - margin
+p_bid_DOWN_max = 1 - Pu - margin
+```
+
+**Contoh bahaya:**
+- Pegang Up avg 0.05 → `p_bid_DOWN_max = 1 - 0.05 - 0.02 = 0.93`
+- Jika book menawarkan Down @ 0.98 → **TOLAK** (akan bikin `Pu+Pd = 1.03`)
+
+### Batas 2: Saldo (Budget tersedia)
+
+```python
+budget_sim = session_capital_usd - reserve_usd - modal_terkunci
+modal_terkunci = Su×Pu + Sd×Pd
+
+size_max = budget_sim / p_bid
+```
+
+- Saldo menipis → size mengecil otomatis
+- Jangan over-leverage: `max_order_usd` tetap berlaku
+
+### Batas 3: Waktu ke Expiry (Profil agresivitas)
+
+```python
+if secs_to_expiry > 295:       # 5 detik pertama
+    mode = TAKER_AGGRESSIVE    # 82% taker, seed posisi cepat
+elif secs_to_expiry > 60:      # Tengah window
+    mode = MAKER_DOMINANT      # 56%→23% taker, quote pasif
+else:                          # <60 detik
+    mode = MAKER_ONLY          # 0% taker, haram menyeberang spread
+```
+
+**Harga final:**
+```python
+def harga_bid(sisi, book, inv, saldo, cfg, secs_to_expiry):
+    # Batas dari book (ikuti mid bid)
+    p_target = book.mid_bid(sisi)
+    
+    # Batas dari rumus (jaga Pu+Pd < 1)
+    p_cap = 1 - inv.p_lawan(sisi) - cfg.pair_margin
+    
+    # Ambil minimum (jangan langgar rumus)
+    p = min(p_target, p_cap)
+    
+    # Hitung size dari saldo
+    size = min(
+        cfg.max_order_usd / p,
+        saldo / p,
+        secs_to_decay_size(secs_to_expiry)  # kecilkan size dekat expiry
+    )
+    
+    # Cek imbalance
+    if inv.imbalance(sisi) >= cfg.max_imbalance_shares:
+        return None  # skip
+    
+    return p, size
+```
+
+---
+
+## 5. Profil Waktu Eksekusi (Data Empiris 80.188 Fill)
+
+V3 meniru perilaku Bonereaper yang **terukur**, bukan spekulatif:
+
+| Detik ke Expiry | Fill Count | Maker % | Taker % | Fase |
+|-----------------|------------|---------|---------|------|
+| **295–300** (buka) | 1.545 | 18% | **82%** | **TAKER agresif** — seed posisi |
+| 240–295 | 14.928 | 54% | 46% | Transisi |
+| 180–240 | 16.298 | 61% | 39% | Maker-dominan |
+| 120–180 | 15.313 | 61% | 39% | Maker-dominan |
+| 60–120 | 16.003 | 66% | 34% | Maker naik |
+| 30–60 | 8.872 | 77% | 23% | Maker |
+| 15–30 | 4.582 | 80% | 20% | Maker |
+| **0–15** (akhir) | 1.557 | **97%** | 3% | **MAKER murni** — likuiditas keluar |
+| <0 (settle) | 1.090 | 100% | 0% | Pasif total |
+
+**Implikasi konfigurasi:**
 ```json
 {
-  "market": {
-    "interval_minutes": 5
-  },
-  "regime_strategy": {
-    "enabled": true,
-    "total_budget_usd": 20.00,
-    "hurst_threshold_trending": 0.55,
-    "hurst_threshold_mean_revert": 0.45,
-    "dominant_allocation_pct": 0.75,
-    "insurance_allocation_pct": 0.25,
-    "scaling_parts": 10,
-    "scaling_duration_sec": 120.0,
-    "max_consecutive_losses": 3,
-    "circuit_breaker_duration_min": 15,
-    "max_spread_usd": 0.05
-  },
-  "strategy": {
-    "min_price": 0.30,
-    "max_price": 0.70,
-    "min_elapsed_sec": 60,
-    "min_deviation_pct": 1.0,
-    "no_entry_before_end_sec": 60
-  },
-  "entry": {
-    "bet_amount_usd": 2.00,
-    "price_offset": 0.01,
-    "order_type": "FAK",
-    "max_retries": 3,
-    "retry_delay_ms": 300,
-    "fill_timeout_ms": 1000,
-    "min_contracts": 1,
-    "min_order_usd": 0.01,
-    "max_entry_price": 0.75,
-    "ws_recovery_timeout_sec": 10,
-    "max_daily_trades": 20,
-    "daily_stop_loss_usd": -5.0
-  },
-  "hedge": {
-    "enabled": false
-  },
-  "simulation": {
-    "enabled": true,
-    "separate_trading_log": true,
-    "trading_log_path": "logs/trading_log_sim.json",
-    "history_csv_path": "logs/simulation_trades.csv",
-    "history_jsonl_path": "logs/simulation_history.jsonl",
-    "history_summary_path": "logs/simulation_summary.json"
-  },
-  "telegram": {
-    "enabled": false,
-    "bot_token": "YOUR_BOT_TOKEN",
-    "chat_id": "YOUR_CHAT_ID",
-    "chart_every_n_trades": 10
-  },
-  "web_dashboard": {
-    "enabled": true,
-    "host": "127.0.0.1",
-    "port": 8765
-  },
-  "logging": {
-    "level": "INFO",
-    "file_rotation_hours": 3
+  "schedule": {
+    "taker_until_s": 295,          # Hanya 5 detik pertama
+    "maker_only_below_s": 60,      # Stop taker di 60 detik terakhir
+    "taper_size_below_s": 15,      # Kecilkan size di 15 detik akhir
+    "taker_open_max": 0.56         # Peluang taker maks 56%
   }
 }
 ```
 
+**Kenapa pola ini?**
+- **Buka (5 detik pertama):** Book tipis, spread lebar → taker untuk rebut posisi awal cepat
+- **Tengah:** Book stabil → maker untuk hemat fee (rebate)
+- **Akhir (<60s):** Likuiditas keluar, risiko settle tinggi → jadi penyedia likuiditas (maker-only)
+
 ---
 
-## 3. Alur Pengambilan Keputusan & Eksekusi Entry
+## 6. Akumulasi Posisi (Running Average)
 
-Setiap kali bot menerima pembaruan data harga dan order book dari WebSocket, bot mengikuti alur logika berikut di dalam `execute_entry()` di [main.py](file:///c:/Users/Zuhri/Documents/apps/polymarket-trade/btc-binary-VWAP-Momentum-bot/main.py):
+Bot tidak beli sekali — akumulasi terus sepanjang window 300 detik.
 
-```mermaid
-graph TD
-    A[Sinyal Masuk Terdeteksi] --> B{Circuit Breaker Aktif?}
-    B -- Ya --> C[Abaikan Sinyal]
-    B -- Tidak --> D{Sudah Punya Posisi Terbuka?}
-    D -- Ya --> C
-    D -- Tidak --> E{Waktu Tersisa < Cutoff 60s?}
-    E -- Ya --> F[Abaikan Sinyal - Terlalu Dekat Selesai]
-    E -- Tidak --> G{Spread > Max Spread 0.05 USD?}
-    G -- Ya --> H[Abaikan Sinyal - Spread Terlalu Lebar]
-    G -- Tidak --> I{Regime Strategy Aktif?}
-    I -- Tidak --> J[Abaikan - Strategi Lama Telah Dihapus]
-    I -- Ya --> K[Deteksi Arah Dominan Berdasarkan Rezim]
-    
-    K --> L{Rezim == MEAN_REVERTING?}
-    L -- Ya --> M[Balikkan Arah Trade Lawan Pergerakan Terakhir]
-    L -- Tidak/Trending --> N[Ikuti Arah Sinyal & OFI]
-    
-    M & N --> O[Hitung Kelly Fraction & Alokasi Budget]
-    O --> P{Budget Hasil Kelly < Min 0.05 USD / Edge <= 0?}
-    P -- Ya --> Q[Abaikan - Tidak Ada Edge Cukup]
-    P -- Tidak --> R[Eksekusi Scaling-In Secara Konkuren via SmartScalingEngine]
-    R --> S[Arah Dominan 75% Budget & Arah Proteksi 25% Budget]
-    S --> T[Simpan Posisi di Stats & Kirim Notifikasi Telegram]
+### Rumus Average Berjalan
+
+```python
+# Setiap fill UP: q share @ harga p
+Su_baru = Su + q
+cost_u_baru = cost_u + q * p
+Pu_baru = cost_u_baru / Su_baru
+
+# Setiap fill DOWN: q share @ harga p
+Sd_baru = Sd + q
+cost_d_baru = cost_d + q * p
+Pd_baru = cost_d_baru / Sd_baru
+```
+
+**Contoh dari screenshot Bonereaper (BTC 11:10–11:15):**
+```
+Su = 840.29 @ Pu = 0.336
+Sd = 994.91 @ Pd = 0.619
+
+Pu + Pd = 0.955 < 1  ✓ pasangan untung
+matched = 840, imbalance = 155 (net Down)
+modal = $898.19
+worst_case = 840 - 898.19 = -$57.90  ✗ BUKAN risk-free
+
+Down menang → payout = 994.91 - 898.19 = +$96.72
+Up menang → payout = 840 - 898.19 = -$57.90
+```
+
+**Pelajaran:**
+- Akumulasi harga rapi (`Pu+Pd < 1`) ✅
+- Tapi imbalance besar (155 shares) ❌
+- Hasil: masih berisiko rugi -$58 meski pasangan untung
+
+→ V3 lebih ketat: batasi `max_imbalance_shares = 14` agar akumulasi tidak keluar dari `worst_case >= 0`.
+
+---
+
+## 7. Konfigurasi Guardrail (Wajib)
+
+```json
+{
+  "market_maker": {
+    "guardrail": {
+      "mode": "risk_free_only",
+      "max_imbalance_shares": 14,
+      "pair_margin": 0.02
+    },
+    "capital": {
+      "session_capital_usd": 20,
+      "reserve_usd": 4,
+      "max_order_usd": 2.50,
+      "min_shares": 5
+    },
+    "schedule": {
+      "taker_until_s": 295,
+      "maker_only_below_s": 60,
+      "taper_size_below_s": 15,
+      "taker_open_max": 0.56
+    }
+  }
+}
+```
+
+**Parameter kritis:**
+- `mode`: WAJIB `"risk_free_only"` untuk live
+- `max_imbalance_shares`: 14 (default empiris), naikkan hanya setelah backtest ketat
+- `pair_margin`: 0.02 (buffer 2¢ untuk fee/slippage)
+- `session_capital_usd`: Bukan saldo venue — ini batas modal sesi (simulasi)
+
+---
+
+## 8. Simulasi Accumulasi (CLI)
+
+V3 menyediakan simulator REPL untuk uji akumulasi tanpa I/O CLOB:
+
+```bash
+# Mode risk_free_only, modal $20, reserve $4, max order $2.50
+python scripts/simulate_paired_orders.py \
+  --mode risk_free_only \
+  --capital-usd 20 \
+  --reserve-usd 4 \
+  --max-order-usd 2.50 \
+  --min-shares 5
+```
+
+**Perintah simulator:**
+```
+sim> pairusd 0.40 2.00 0.50 2.50   # Beli pasangan UP/DOWN
+sim> show                            # Lihat Su, Sd, Pu, Pd, worst_case
+sim> buy up 5 0.38                   # Uji beli UP tambahan
+sim> guardrail                       # Cek decision guardrail
+sim> reset                           # Reset inventori
+```
+
+**Output contoh:**
+```
+Position:
+  Su=5, Sd=5, Pu=0.40, Pd=0.50
+  Modal=$4.50, worst_case=+$0.50 (risk-free ✓)
+  matched=5, imbalance=0
+  spread_pair=5×(1-0.40-0.50)=+$0.50
+
+Budget:
+  session_capital=$20, reserve=$4
+  modal_terkunci=$4.50, budget_tersedia=$11.50
 ```
 
 ---
 
-## 4. Panduan Manajemen Risiko & Proteksi Modal
+## 9. Peringatan Penting
 
-Agar Anda bisa memperoleh hasil trading yang konsisten, pastikan bot menerapkan batasan risiko berikut yang telah terpasang di kode program:
+### ⚠️ JANGAN Pakai Mode `off` untuk Live
 
-1. **Circuit Breaker (Pengaman Beruntun)**:
-   - Jika bot mengalami kekalahan beruntun sebanyak 3 kali (`max_consecutive_losses: 3`), bot akan mengaktifkan Circuit Breaker secara otomatis.
-   - Semua entri baru akan diblokir selama 15 menit (`circuit_breaker_duration_min: 15`). Ini berguna untuk mengistirahatkan bot saat pasar sedang dalam kondisi bergejolak ekstrem (*extreme noise*).
-2. **Daily Stop-Loss (Batasan Harian)**:
-   - Jika akumulasi kerugian dalam 1 hari UTC menyentuh `-5.0 USD` (`daily_stop_loss_usd: -5.0`), bot akan berhenti mengeksekusi perdagangan baru hingga hari UTC berganti.
-3. **No-Entry Cutoff**:
-   - Bot tidak akan membuka posisi baru di sisa waktu 60 detik terakhir sebelum siklus 5-menit selesai (`no_entry_before_end_sec: 60`). Hal ini untuk menghindari risiko slippage tinggi dan ketidakmampuan keluar dari pasar tepat waktu.
-4. **Spread Gate**:
-   - Jika selisih harga terbaik beli dan jual (*best bid/ask spread*) melebihi `0.05 USD`, bot akan membatalkan eksekusi perdagangan per slice tersebut untuk mencegah kerugian langsung akibat *bid-ask gap*.
+```json
+"guardrail": { "mode": "off" }  # ❌ BAHAYA!
+```
+
+Mode ini meniru Bonereaper apa adanya:
+- 85.4% market BUKAN risk-free
+- 53.1% market punya `Pu+Pd >= 1` (pasangan rugi)
+- Imbalance tidak terkendali (bisa >200 shares)
+
+**Hanya untuk:**
+- Replay historis
+- Analisis statistik
+- Backtesting strategi
+
+### ⚠️ Mode `spread_positive` Bukan Janji Profit
+
+```json
+"guardrail": { "mode": "spread_positive" }  # ⚠️ Masih bisa rugi
+```
+
+Mode ini cukup cek `Pu+Pd < 1`, tapi:
+- Masih bisa rugi jika imbalance besar
+- Contoh: `Pu+Pd=0.86 < 1` ✅, tapi `imbalance=218` ❌ → rugi -$24
+
+**Gunakan hanya untuk:**
+- Paper testing
+- Validasi rumus
+- Bukan live trading
+
+### ✅ Mode `risk_free_only` Wajib untuk Live
+
+```json
+"guardrail": { "mode": "risk_free_only" }  # ✅ AMAN
+```
+
+Ini satu-satunya mode yang menjamin:
+- `worst_case >= 0` (bebas rugi apa pun hasil market)
+- `imbalance <= max` (exposure terkontrol)
+- `Pu+Pd < 1 - margin` (spread positif dengan buffer)
 
 ---
 
-## 5. Langkah Menjalankan Bot secara Konsisten
+## 10. Referensi Lanjutan
 
-### Langkah 1: Pengujian Awal (Simulation Mode)
-Selalu jalankan bot pertama kali dalam mode simulasi (*paper trading*) untuk menguji kestabilan koneksi dan parameter di lingkungan lokal Anda.
-1. Pastikan `"simulation": {"enabled": true}` terpasang di `config.json`.
-2. Jalankan program utama:
-   ```bash
-   python main.py
-   ```
-3. Buka browser dan arahkan ke alamat web dashboard lokal Anda (biasanya `http://127.0.0.1:8765/`) untuk melihat visualisasi pergerakan harga, Hurst Exponent, OFI, dan catatan P&L simulasi Anda.
+- **Arsitektur lengkap**: [`docs/ARSITEKTUR_V3.md`](docs/ARSITEKTUR_V3.md)
+- **Rumus detail**: `src/mm/pnl_formula.py`
+- **Guardrail logic**: `src/mm/guardrail.py`
+- **Simulator**: `scripts/simulate_paired_orders.py`
+- **Config guide**: [`CONFIG.md`](CONFIG.md)
 
-### Langkah 2: Mode Live Trading (Real Capital)
-Setelah parameter terbukti konsisten di mode simulasi, Anda dapat beralih ke perdagangan riil:
-1. Ubah `"simulation": {"enabled": false}` di `config.json`.
-2. Isi kredensial API Polymarket Anda pada file `.env` (pastikan privat key dan alamat funder terisi dengan benar).
-3. Jalankan kembali `python main.py`.
+---
+
+**Dokumentasi lama (V2)** tentang Hurst Exponent, OFI, Kelly Criterion, dan dual-side scaling 
+telah dipindahkan ke `docs/legacy/GUIDELINE_V2.md` untuk referensi sejarah migrasi.
+
+**Semua deployment baru WAJIB mengikuti panduan guardrail V3 ini.**
