@@ -1,0 +1,178 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "bot-v3-overview",
+    "title": "Bot V3 — Overview",
+    "tags": ["bot-v3", "trading"],
+    "timezone": "browser",
+    "schemaVersion": 38,
+    "version": 1,
+    "refresh": "10s",
+    "panels": [
+      {
+        "id": 1,
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+        "type": "stat",
+        "title": "Realized PnL (USD)",
+        "targets": [
+          {
+            "expr": "bot_pnl_realized",
+            "legendFormat": "PnL",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": null},
+                {"color": "yellow", "value": 0},
+                {"color": "green", "value": 10}
+              ]
+            },
+            "unit": "currencyUSD",
+            "decimals": 2
+          }
+        }
+      },
+      {
+        "id": 2,
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+        "type": "stat",
+        "title": "Active Workers",
+        "targets": [
+          {
+            "expr": "sum(bot_worker_status)",
+            "legendFormat": "Workers",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "steps": [
+                {"color": "red", "value": null},
+                {"color": "yellow", "value": 1},
+                {"color": "green", "value": 2}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 3,
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 8},
+        "type": "timeseries",
+        "title": "PnL Over Time",
+        "targets": [
+          {
+            "expr": "bot_pnl_realized",
+            "legendFormat": "Realized",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(bot_pnl_current)",
+            "legendFormat": "Unrealized",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyUSD",
+            "decimals": 2
+          }
+        }
+      },
+      {
+        "id": 4,
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+        "type": "timeseries",
+        "title": "Inventory Imbalance by Market",
+        "targets": [
+          {
+            "expr": "bot_imbalance",
+            "legendFormat": "{{market}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          }
+        }
+      },
+      {
+        "id": 5,
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+        "type": "timeseries",
+        "title": "Orders vs Fills (rate/sec)",
+        "targets": [
+          {
+            "expr": "rate(bot_orders_total[1m])",
+            "legendFormat": "Orders/s",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(bot_fills_total[1m])",
+            "legendFormat": "Fills/s",
+            "refId": "B"
+          }
+        ]
+      },
+      {
+        "id": 6,
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24},
+        "type": "timeseries",
+        "title": "Guardrail Rejections (rate/min)",
+        "targets": [
+          {
+            "expr": "rate(bot_guardrail_rejections_total[1m]) * 60",
+            "legendFormat": "{{rule}}",
+            "refId": "A"
+          }
+        ]
+      },
+      {
+        "id": 7,
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24},
+        "type": "timeseries",
+        "title": "Order Latency (p95, seconds)",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(bot_order_latency_seconds_bucket[5m]))",
+            "legendFormat": "p95",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s"
+          }
+        }
+      },
+      {
+        "id": 8,
+        "gridPos": {"h": 4, "w": 24, "x": 0, "y": 32},
+        "type": "table",
+        "title": "Market Status",
+        "targets": [
+          {
+            "expr": "bot_inventory_up",
+            "legendFormat": "UP: {{market}}",
+            "refId": "A"
+          },
+          {
+            "expr": "bot_inventory_down",
+            "legendFormat": "DOWN: {{market}}",
+            "refId": "B"
+          }
+        ],
+        "transformations": [
+          {"id": "reduce", "options": {"reducer": "last"}}
+        ]
+      }
+    ]
+  }
+}
